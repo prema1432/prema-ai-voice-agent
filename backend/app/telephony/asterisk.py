@@ -1,7 +1,7 @@
 """Asterisk ARI (Asterisk REST Interface) client + RTP media session.
 
 Outbound AI call flow:
-  1. POST /channels?endpoint=pjsip:trunk/91xxxx&app=freebuff-voice  → originate
+  1. POST /channels?endpoint=pjsip:trunk/91xxxx&app=prema-ai-voice-agent  → originate
   2. StasisStart (dialed channel answered)
   3. POST /channels/externalMedia → RTP media channel into this process
   4. Bridge them → full-duplex audio

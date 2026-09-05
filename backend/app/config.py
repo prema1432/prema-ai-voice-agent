@@ -24,12 +24,12 @@ def _bool(value: str | None, default: bool = False) -> bool:
 
 class Settings:
     def __init__(self) -> None:
-        self.app_name: str = os.getenv("APP_NAME", "freebuff-voice")
+        self.app_name: str = os.getenv("APP_NAME", "prema-ai-voice-agent")
         self.env: str = os.getenv("ENV", "development")
 
         # MongoDB
         self.mongo_uri: str = os.getenv("MONGODB_URI", "mongodb://localhost:27017")
-        self.mongo_db: str = os.getenv("MONGODB_DB", "freebuff_voice")
+        self.mongo_db: str = os.getenv("MONGODB_DB", "prema_voice")
 
         # OpenRouter
         self.openrouter_api_key: str = os.getenv("OPENROUTER_API_KEY", "")
@@ -60,10 +60,10 @@ class Settings:
         self.ari_base_url: str = os.getenv("ARI_BASE_URL", "")
         self.ari_username: str = os.getenv("ARI_USERNAME", "")
         self.ari_password: str = os.getenv("ARI_PASSWORD", "")
-        self.ari_stasis_app: str = os.getenv("ARI_STASIS_APP", "freebuff-voice")
+        self.ari_stasis_app: str = os.getenv("ARI_STASIS_APP", "prema-ai-voice-agent")
         self.media_host: str = os.getenv("MEDIA_HOST", "127.0.0.1")
         self.media_port: int = int(os.getenv("MEDIA_PORT", "20000"))
-        self.sip_caller_id: str = os.getenv("SIP_CALLER_ID", "freebuff-voice")
+        self.sip_caller_id: str = os.getenv("SIP_CALLER_ID", "prema-ai-voice-agent")
         self.sip_trunk_endpoint: str = os.getenv("SIP_TRUNK_ENDPOINT", "pjsip:trunk")
         self.dial_timeout_seconds: int = int(os.getenv("DIAL_TIMEOUT_SECONDS", "45"))
 

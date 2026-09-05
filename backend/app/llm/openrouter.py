@@ -44,7 +44,7 @@ def _headers() -> dict[str, str]:
     headers = {
         "Authorization": f"Bearer {settings.openrouter_api_key}",
         "Content-Type": "application/json",
-        "HTTP-Referer": settings.openrouter_app_url or "https://freebuff.voice",
+        "HTTP-Referer": settings.openrouter_app_url or "https://github.com/prema1432/prema-ai-voice-agent",
         "X-Title": settings.app_name,
     }
     return headers

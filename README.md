@@ -1,4 +1,4 @@
-# Freebuff Voice 🎙️
+# Prema AI Voice Agent 🎙️
 
 **Self-hosted AI voice-call agent platform for Indian numbers & regional languages.**
 Free/open-source stack: self-hosted STT/TTS/VAD, LLM via OpenRouter, MongoDB storage,

@@ -15,8 +15,8 @@ handles VAD/STT/LLM/TTS on the raw audio. No paid telephony SDK involved.
 2. Build + run:
 
 ```bash
-docker build -t freebuff-asterisk ./telephony/asterisk
-docker run --network host -e ARI_PASSWORD=change-me-ari-password freebuff-asterisk
+docker build -t prema-asterisk ./telephony/asterisk
+docker run --network host -e ARI_PASSWORD=change-me-ari-password prema-asterisk
 ```
 
 3. Point the backend at it in `.env`:
@@ -25,7 +25,7 @@ docker run --network host -e ARI_PASSWORD=change-me-ari-password freebuff-asteri
 ARI_BASE_URL=http://<asterisk-host>:8088
 ARI_USERNAME=ari_user
 ARI_PASSWORD=change-me-ari-password
-ARI_STASIS_APP=freebuff-voice
+ARI_STASIS_APP=prema-ai-voice-agent
 MEDIA_HOST=<ip reachable from asterisk>
 SIP_TRUNK_ENDPOINT=pjsip:trunk
 ```

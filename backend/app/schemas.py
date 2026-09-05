@@ -78,7 +78,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 class Config(BaseModel):
     """Global app configuration (loaded once)."""
-    name: str = "Freebuff Voice Telugu"
+    name: str = "Prema AI Voice Agent Telugu"
     model_config = ConfigDict(arbitrary_types_allowed=True)
     language: str = TELUGU_PRIMARY
     scripts: list[dict[str, Any]] = Field(default_factory=lambda: [{"script": "Telugu", "start": 0x0C00, "end": 0x0C7F}])

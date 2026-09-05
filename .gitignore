@@ -34,3 +34,6 @@ recordings/
 .freebuff/lctest.out
 .freebuff/project-id
 .freebuff/t1.out
+
+# local agent preview state (not part of the project)
+.freebuff/

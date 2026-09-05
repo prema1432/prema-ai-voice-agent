@@ -54,7 +54,7 @@ function App() {
         <div className="sidebar-logo">
           <div className="mark">🎙️</div>
           <div>
-            <div className="name">Freebuff Voice</div>
+            <div className="name">Prema AI Voice Agent</div>
             <div className="tag">AI Call Agents</div>
           </div>
         </div>

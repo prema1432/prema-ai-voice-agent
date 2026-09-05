@@ -46,7 +46,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="Freebuff Voice",
+    title="Prema AI Voice Agent",
     description=(
         "Self-hosted AI voice-call agent platform for Indian numbers & regional "
         "languages. STT/TTS/VAD self-hosted, LLM via OpenRouter, storage in MongoDB."

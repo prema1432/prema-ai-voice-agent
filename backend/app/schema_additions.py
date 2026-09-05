@@ -1,4 +1,4 @@
-"""Telugu-primary schema additions for Freebuff Voice.
+"""Telugu-primary schema additions for Prema AI Voice Agent.
 
 Primary language: Telugu (te) — the default for all campaigns, agents, leads,
 and every turn in the transcript / WebSocket transport.

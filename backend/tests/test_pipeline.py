@@ -124,6 +124,21 @@ import pytest  # noqa: E402
 
 
 async def test_language_switch_on_script(fake_orr_factory):
+    # Telugu-native script from STT switches the reply language to te.
+    class TeluguSTT:
+        async def transcribe(self, pcm, language=None):  # noqa: ANN001
+            return "నమస్కారం, మీరు ఎలా ఉన్నారు?"
+
+    fake_orr = fake_orr_factory([("Namaskaram!", [])])
+    p = _pipeline(fake_orr, stt=TeluguSTT())
+
+    await p._process_user_turn(_pcm(400))
+    assert p.language == "te"                          # switched from hi → te
+
+
+async def test_non_telugu_script_does_not_switch(fake_orr_factory):
+    # The script detector only reports Telugu (Telugu-primary platform), so Tamil
+    # input leaves the reply language untouched rather than mid-call flickering.
     class TamilSTT:
         async def transcribe(self, pcm, language=None):  # noqa: ANN001
             return "வணக்கம், எப்படி இருக்கிறீர்கள்?"
@@ -132,4 +147,4 @@ async def test_language_switch_on_script(fake_orr_factory):
     p = _pipeline(fake_orr, stt=TamilSTT())
 
     await p._process_user_turn(_pcm(400))
-    assert p.language == "ta"                          # switched from hi → ta
+    assert p.language == "hi"

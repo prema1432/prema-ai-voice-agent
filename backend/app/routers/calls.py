@@ -129,6 +129,9 @@ class BrowserCallSession:
             if data.get("type") == "start" and not started:
                 started = True
                 await self._start_call(data)
+            elif data.get("type") == "user_text" and self.pipeline:
+                # Typed caller turn (Voice Lab simulation without a mic).
+                await self.pipeline.ask_user_text(str(data.get("text") or ""))
             elif data.get("type") == "stop" and self.pipeline:
                 await self._end_call("client_hangup")
                 break

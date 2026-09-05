@@ -152,6 +152,13 @@ class AgentPersona(BaseModel):
     # Turn format for this agent's transcript: 'native' (Telugu script) or
     # 'transliterated' (Latin rendering for operators, logs, search).
     turn_format: TurnFormat = "native"
+    # ── Agent directory (dashboard "Agents" page) ──────────────────────────
+    gender: Literal["male", "female"] = "female"
+    # Dynamic specialization: default catalog (Telecalling, Sales/Closing, …)
+    # or any custom label the operator types.
+    specialization: str = "Telecalling"
+    avatar: str | None = None  # URL (e.g. DiceBear) — UI falls back to initials
+    accent: str = "indigo"  # avatar gradient theme
 
 
 class AgentConfigIn(BaseModel):

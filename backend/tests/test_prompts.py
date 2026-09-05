@@ -13,19 +13,19 @@ def test_prompt_contains_persona_and_language_rules():
     prompt = build_system_prompt(p)
     assert "Ravi" in prompt
     assert "solar panels" in prompt
-    assert "aap-form" in prompt            # Hindi-specific rule injected
+    assert "Telugu-primary" in prompt       # script-floor section present
     assert "LIVE VOICE AGENT" in prompt
-    assert "markdown" in prompt            # anti-markdown speech rule
+    assert "markdown" in prompt             # anti-markdown speech rule
 
 
 def test_prompt_hinglish_rule():
     prompt = build_system_prompt(_persona(primary_language="hinglish"))
-    assert "Code-mix" in prompt
+    assert "Hinglish" in prompt             # code-mix rule section present
 
 
 def test_prompt_no_tools_leak():
     prompt = build_system_prompt(_persona())
-    assert prompt.count("#") >= 2          # structured sections present
+    assert prompt.count("#") >= 2           # structured sections present
 
 
 def test_summary_messages_shape():
@@ -41,17 +41,19 @@ def test_summary_messages_shape():
 
 
 def test_detect_language_scripts():
-    assert detect_language("नमस्ते आप कैसे हैं") == "hi"
-    assert detect_language("வணக்கம்") == "ta"
+    # Telugu-native script is the only one this detector reports (Telugu-primary
+    # platform); other scripts and Latin text read as None -> stays transliterated.
     assert detect_language("నమస్కారం") == "te"
-    assert detect_language("নমস্কার") == "bn"
-    assert detect_language("hello there") is None       # Latin → None
-    assert detect_language("haan boliye kya haal hai") is None  # romanized → None
-    assert detect_language("") is None
+    assert detect_language("మీరు ఎలా ఉన్నారు") == "te"
+    assert detect_language("வணக்கம்") is None                # Tamil script -> None
+    assert detect_language("नमस्ते आप कैसे हैं") is None     # Devanagari alone -> None
+    assert detect_language("hello there") is None            # Latin -> None
+    assert detect_language("haan boliye kya haal hai") is None  # romanized -> None
+    assert detect_language("") == "te"        # empty input returns primary
 
 
 def test_persona_defaults():
     p = AgentPersona(name="x")
-    assert p.primary_language == "hi"
+    assert p.primary_language == "te"       # Telugu-primary platform default
     assert p.auto_language_switch is True
     assert "hinglish" in p.fallback_languages

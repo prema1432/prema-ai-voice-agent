@@ -23,3 +23,6 @@ async def ensure_indexes(db: AsyncIOMotorDatabase) -> None:
 
     await db["agent_configs"].create_index("name", **COMPOUND_UNIQUE)
     await db["users"].create_index("email", **COMPOUND_UNIQUE)
+
+    await db["llm_usage"].create_index([("ts", -1)])
+    await db["llm_usage"].create_index([("model", 1), ("ts", -1)])

@@ -9,7 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
 from app.db import close_db, connect_db
-from app.routers import agents, calls, campaigns, leads
+from app.routers import agents, calls, campaigns, leads, llm
 
 logging.basicConfig(
     level=logging.INFO,
@@ -22,6 +22,10 @@ log = logging.getLogger(__name__)
 async def lifespan(app: FastAPI):
     await connect_db()
     log.info("connected to MongoDB at %s/%s", settings.mongo_uri, settings.mongo_db)
+
+    # Seed the default agent directory (idempotent).
+    from app.routers.agents import ensure_default_agents
+    await ensure_default_agents()
 
     # Resume dialers for campaigns that were 'running' before a restart —
     # runners live in-process, so without this they silently die on redeploy.
@@ -67,6 +71,7 @@ app.include_router(agents.router)
 app.include_router(campaigns.router)
 app.include_router(leads.router)
 app.include_router(calls.router)
+app.include_router(llm.router)
 
 
 @app.get("/health")

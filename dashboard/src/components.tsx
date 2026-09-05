@@ -144,6 +144,67 @@ export function LangPill({ code }: { code?: string | null }) {
   return <Badge tone="violet">{LANGUAGES[code] ?? code}</Badge>;
 }
 
+/* ── Avatar (DiceBear image with initials fallback) ────── */
+function useAvatarOk(avatar?: string | null) {
+  const [ok, setOk] = React.useState(true);
+  React.useEffect(() => setOk(true), [avatar]);
+  return { ok, fail: () => setOk(false) };
+}
+
+export function Avatar({
+  name,
+  avatar,
+  accent = "indigo",
+  size = 40,
+}: {
+  name?: string | null;
+  avatar?: string | null;
+  accent?: string;
+  size?: number;
+}) {
+  const initials = (name ?? "?").split(/\s+/).map((p) => p[0]).slice(0, 2).join("").toUpperCase() || "?";
+  const { ok, fail } = useAvatarOk(avatar);
+  return (
+    <span className={`avatar accent-${accent}`} style={{ width: size, height: size, fontSize: size * 0.36 }}>
+      {avatar && ok ? <img src={avatar} alt={name ?? "agent"} onError={fail} /> : <span>{initials}</span>}
+    </span>
+  );
+}
+
+/* ── Star rating ────────────────────────────────────────── */
+export function Stars({ rating, max = 5 }: { rating: number; max?: number }) {
+  const filled = Math.round(Math.max(0, Math.min(max, rating)));
+  return (
+    <span className="stars" title={`${rating.toFixed(1)} / ${max}`}>
+      {"★".repeat(filled)}
+      <span className="off">{"★".repeat(max - filled)}</span>
+    </span>
+  );
+}
+
+/* ── Simple CSS bar sparkline ───────────────────────────── */
+export function Bars({ data, color = "var(--accent-1)" }: { data: number[]; color?: string }) {
+  const max = Math.max(1, ...data);
+  return (
+    <div style={{ display: "flex", alignItems: "flex-end", gap: 3, height: 40 }}>
+      {data.map((v, i) => (
+        <div
+          key={i}
+          className="fade-up"
+          style={{
+            flex: 1,
+            background: color,
+            borderRadius: "4px 4px 2px 2px",
+            height: `${Math.max(4, (v / max) * 100)}%`,
+            opacity: 0.55 + (i / Math.max(1, data.length - 1)) * 0.45,
+            transition: "height 0.4s ease",
+          }}
+        />
+      ))}
+    </div>
+  );
+}
+
 /* ── Time helper ───────────────────────────────────────── */
 export function timeAgo(iso?: string | null): string {
   if (!iso) return "";

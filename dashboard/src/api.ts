@@ -68,6 +68,62 @@ export interface CallSession {
   created_at?: string;
 }
 
+export interface AgentDirectoryItem {
+  id: string;
+  name: string;
+  gender: "male" | "female";
+  specialization: string;
+  avatar?: string | null;
+  accent?: string;
+  description?: string;
+  requirements?: string;
+  primary_language?: string;
+  tools_enabled?: string[];
+  stats?: {
+    leads_completed: number;
+    calls: number;
+    avg_score?: number | null;
+    rating: number;
+  };
+  created_at?: string;
+}
+
+export interface AgentMeta {
+  specializations: string[];
+  sample_names: { male: string[]; female: string[] };
+  accents: string[];
+}
+
+export interface LlmStatus {
+  enabled: boolean;
+  model: string;
+  summary_model: string;
+  base_url: string;
+  key_set: boolean;
+  thinking_effort: string | null;
+  send_reasoning: boolean;
+  usage_enabled: boolean;
+  free_fallbacks: string[];
+}
+
+export interface LlmUsageRow {
+  model: string;
+  purpose: string;
+  prompt_tokens: number;
+  completion_tokens: number;
+  cost: number;
+  free: boolean;
+  ts: string;
+}
+
+export interface LlmUsage {
+  window_days: number;
+  total: { calls: number; prompt_tokens: number; completion_tokens: number; cost: number; free_calls: number };
+  per_day: { _id: string; calls: number; prompt_tokens: number; completion_tokens: number; cost: number }[];
+  per_model: { _id: string; calls: number; prompt_tokens: number; completion_tokens: number; cost: number }[];
+  recent: LlmUsageRow[];
+}
+
 export const api = {
   health: () => req<Record<string, unknown>>("/health"),
 
@@ -120,6 +176,17 @@ export const api = {
   listCalls: (campaignId?: string) =>
     req<CallSession[]>(`/calls${campaignId ? `?campaign_id=${campaignId}` : ""}`),
   getCall: (id: string) => req<CallSession>(`/calls/${id}`),
+
+  // agents directory
+  listAgents: () => req<AgentDirectoryItem[]>("/agents"),
+  getAgent: (id: string) => req<AgentDirectoryItem>(`/agents/${id}`),
+  createAgent: (body: unknown) => req<{ id: string }>("/agents", { method: "POST", body: JSON.stringify(body) }),
+  deleteAgent: (id: string) => req<{ deleted: boolean }>(`/agents/${id}`, { method: "DELETE" }),
+  agentMeta: () => req<AgentMeta>("/agents/meta"),
+
+  // llm
+  llmStatus: () => req<LlmStatus>("/llm/status"),
+  llmUsage: (days = 7) => req<LlmUsage>(`/llm/usage?days=${days}`),
 };
 
 export const LANGUAGES: Record<string, string> = {

@@ -24,6 +24,7 @@ COLLECTIONS = {
     "agent_configs": "agent_configs",
     "appointments": "appointments",
     "callbacks": "callbacks",
+    "llm_usage": "llm_usage",
 }
 
 

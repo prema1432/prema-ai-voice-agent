@@ -37,6 +37,14 @@ class Settings:
         self.openrouter_llm_model: str = os.getenv("OPENROUTER_LLM_MODEL", "minimax/minimax-m3:free")
         self.openrouter_summary_model: str = os.getenv("OPENROUTER_SUMMARY_MODEL", self.openrouter_llm_model)
         self.openrouter_app_url: str = os.getenv("OPENROUTER_APP_URL", "")
+        # Reasoning controls. Displayed in the LLM dashboard and sent to the API
+        # only when non-empty (few :free providers accept it).
+        self.openrouter_thinking_effort: str = os.getenv("OPENROUTER_THINKING_EFFORT", "low")
+        self.openrouter_send_reasoning: bool = _bool(
+            os.getenv("OPENROUTER_SEND_REASONING_EFFORT"), False
+        )
+        # Cost monitoring switches
+        self.llm_usage_enabled: bool = _bool(os.getenv("LLM_USAGE_ENABLED"), True)
         self.free_model_fallbacks: list[str] = FREE_MODEL_FALLBACKS
         self.auto_rotate_on_429: bool = os.getenv("FREE_MODEL_AUTO_ROTATE", "true").strip().lower() in {"1","true","yes","on"}
 

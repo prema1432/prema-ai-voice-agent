@@ -201,7 +201,22 @@ class VoicePipeline:
         text = (text or "").strip()
         if not text:
             return
+        await self._handle_user_text(text, gen)
 
+    async def ask_user_text(self, text: str) -> None:
+        """Inject a typed caller turn (Voice Lab simulation / tests).
+
+        Lets operators run a full conversation without a mic or real STT — the
+        same LLM reply, tool and transcript path as spoken input.
+        """
+        gen = self._generation
+        text = (text or "").strip()
+        if not text or self.ended:
+            return
+        await self._handle_user_text(text, gen)
+
+    async def _handle_user_text(self, text: str, gen: int) -> None:
+        """Common path for user turns (spoken via STT or typed for simulation)."""
         # Auto language switch on detected Indic script
         if getattr(self.persona, "auto_language_switch", True):
             detected = detect_language(text)

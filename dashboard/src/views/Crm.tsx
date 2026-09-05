@@ -45,24 +45,42 @@ export default function Crm({ campaignId }: { campaignId?: string }) {
     const fromStage = Object.entries(board.columns).find(([, leads]) =>
       leads.some((l) => l.id === leadId),
     )?.[0];
-    if (fromStage === toStage) return;
-    // Optimistic move; revert silently on failure.
+    if (!fromStage || fromStage === toStage) return;
     const prev = board;
-    setBoard({
-      ...prev,
-      columns: Object.fromEntries(
-        Object.entries(prev.columns).map(([sid, leads]) => [
-          sid,
-          sid === fromStage
-            ? leads.filter((l) => l.id !== leadId)
-            : sid === toStage
-              ? [...leads, leads.find((l) => l.id === leadId) ?? { id: leadId } as Lead]
-              : leads,
-        ]),
-      ),
+    const fromTerminal = board.stages.find((s) => s.id === fromStage)?.terminal;
+    const toTerminal = board.stages.find((s) => s.id === toStage)?.terminal;
+    const lead = board.columns[fromStage].find((l) => l.id === leadId);
+    // Optimistic move that mirrors the backend's status/outcome side effects,
+    // so terminal moves show the badge and reopening resets instantly.
+    setBoard((b) => {
+      if (!b) return b;
+      const columns = Object.fromEntries(
+        Object.entries(b.columns).map(([sid, leads]) => {
+          if (sid === fromStage) return [sid, leads.filter((l) => l.id !== leadId)];
+          if (sid !== toStage) return [sid, leads];
+          const moved = leads.find((l) => l.id === leadId);
+          const updated: Lead = moved
+            ? { ...moved }
+            : lead
+              ? { ...lead }
+              : ({ id: leadId } as Lead);
+          if (toTerminal) {
+            updated.status = "completed";
+            updated.last_outcome = toStage;
+          } else if (fromTerminal && updated.status === "completed") {
+            updated.status = "new";
+            updated.last_outcome = null;
+          }
+          return [sid, [...leads, updated]];
+        }),
+      );
+      return { ...b, columns };
     });
     try {
       await api.moveLead(activeId, leadId, toStage);
+      // Re-pull the board so server truth (status, outcomes, stat totals)
+      // is reflected instantly instead of on the next page load.
+      loadBoard(activeId);
     } catch (e) {
       setErr(String(e));
       setBoard(prev);
@@ -179,7 +197,9 @@ export default function Crm({ campaignId }: { campaignId?: string }) {
             onDrop={(e) => {
               e.preventDefault();
               setDragOver(null);
-              const lid = e.dataTransfer.getData("text/lead-id");
+              const lid =
+                e.dataTransfer.getData("text/lead-id") ||
+                e.dataTransfer.getData("text/plain");
               if (lid) moveLead(lid, s.id);
             }}
           >
@@ -220,7 +240,11 @@ export default function Crm({ campaignId }: { campaignId?: string }) {
                   key={l.id}
                   className="kanban-card"
                   draggable
-                  onDragStart={(e) => e.dataTransfer.setData("text/lead-id", l.id)}
+                  onDragStart={(e) => {
+                    e.dataTransfer.setData("text/lead-id", l.id);
+                    e.dataTransfer.setData("text/plain", l.id);
+                    e.dataTransfer.effectAllowed = "move";
+                  }}
                 >
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 6 }}>
                     <b>{leadName(l)}</b>

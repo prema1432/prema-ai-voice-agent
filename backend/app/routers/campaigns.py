@@ -7,7 +7,7 @@ from bson import ObjectId
 from fastapi import APIRouter, HTTPException
 
 from app.db import collection
-from app.schemas import CampaignIn
+from app.schemas import CampaignIn, CampaignScheduleIn
 from app.services import dialer
 
 router = APIRouter(prefix="/campaigns", tags=["campaigns"])
@@ -16,6 +16,9 @@ router = APIRouter(prefix="/campaigns", tags=["campaigns"])
 def _out(doc: dict) -> dict:
     doc = dict(doc)
     doc["id"] = str(doc.pop("_id"))
+    for key in ("schedule_start", "schedule_end"):
+        if doc.get(key) is not None:
+            doc[key] = doc[key].isoformat()
     return doc
 
 
@@ -121,6 +124,70 @@ async def pause_campaign(campaign_id: str) -> dict:
                  kind="campaign", data={"campaign_id": campaign_id})
     emit("campaign.paused", {"campaign_id": campaign_id, "name": (doc or {}).get("name")})
     return {"status": "paused"}
+
+
+@router.post("/{campaign_id}/schedule")
+async def schedule_campaign(campaign_id: str, body: CampaignScheduleIn) -> dict:
+    """Arm a campaign to auto-start at schedule_start with N spun agents."""
+    from datetime import datetime, timezone
+
+    from app.events import audit, emit, notify
+
+    doc = await collection("campaigns").find_one({"_id": ObjectId(campaign_id)})
+    if not doc:
+        raise HTTPException(404, "campaign not found")
+    if dialer.is_running(campaign_id):
+        raise HTTPException(409, "pause the campaign before rescheduling it")
+
+    set_fields: dict = {
+        "status": "scheduled",
+        "schedule_start": body.schedule_start.astimezone(timezone.utc),
+        "schedule_end": body.schedule_end.astimezone(timezone.utc) if body.schedule_end else None,
+        "expected_leads": body.expected_leads,
+        "concurrency": body.concurrency,
+        "team_agent_ids": body.team_agent_ids,
+        "updated_at": datetime.now(timezone.utc),
+    }
+    await collection("campaigns").update_one(
+        {"_id": ObjectId(campaign_id)}, {"$set": set_fields}
+    )
+    await audit("campaign.scheduled", entity_type="campaign", entity_id=campaign_id,
+                meta={"name": doc.get("name"),
+                      "schedule_start": set_fields["schedule_start"].isoformat(),
+                      "concurrency": body.concurrency,
+                      "expected_leads": body.expected_leads,
+                      "team_size": len(body.team_agent_ids)})
+    await notify(
+        "⏰ Campaign scheduled",
+        f"'{doc.get('name')}' will auto-run {set_fields['schedule_start'].strftime('%b %d %H:%M')} "
+        f"spinning up to {body.concurrency} agent(s)"
+        + (f" for ≥{body.expected_leads} leads" if body.expected_leads else "") + ".",
+        kind="campaign", data={"campaign_id": campaign_id},
+    )
+    emit("campaign.scheduled", {"campaign_id": campaign_id, "name": doc.get("name")})
+    return {"status": "scheduled"}
+
+
+@router.post("/{campaign_id}/cancel-schedule")
+async def cancel_schedule(campaign_id: str) -> dict:
+    """Cancel a scheduled run; campaign returns to draft."""
+    from datetime import datetime, timezone
+
+    from app.events import audit, notify
+
+    doc = await collection("campaigns").find_one({"_id": ObjectId(campaign_id)})
+    if not doc:
+        raise HTTPException(404, "campaign not found")
+    await collection("campaigns").update_one(
+        {"_id": ObjectId(campaign_id)},
+        {"$set": {"status": "draft", "schedule_start": None, "schedule_end": None,
+                  "updated_at": datetime.now(timezone.utc)}},
+    )
+    await audit("campaign.unscheduled", entity_type="campaign", entity_id=campaign_id,
+                meta={"name": doc.get("name")})
+    await notify("🕐 Campaign unscheduled", f"'{doc.get('name')}' is back to draft and will not auto-run.",
+                 kind="campaign", data={"campaign_id": campaign_id})
+    return {"status": "draft"}
 
 
 @router.get("/{campaign_id}/stats")

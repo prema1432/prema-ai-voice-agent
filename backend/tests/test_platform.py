@@ -41,3 +41,29 @@ def test_integration_catalog_dynamic_types():
                 "push", "telegram", "crm", "custom"):
         assert key in CATALOG
         assert "label" in CATALOG[key] and "fields" in CATALOG[key]
+
+
+def test_campaign_schedule_defaults_and_validation():
+    from datetime import datetime, timezone
+
+    from app.schemas import CampaignIn, CampaignScheduleIn
+
+    c = CampaignIn(name="Run")
+    assert c.schedule_start is None
+    assert c.expected_leads is None
+    assert c.team_agent_ids == []
+    assert 1 <= c.concurrency <= 50
+
+    s = CampaignScheduleIn(
+        schedule_start=datetime.now(timezone.utc),
+        concurrency=8,
+        expected_leads=100,
+        team_agent_ids=["a"],
+    )
+    assert s.concurrency == 8 and s.expected_leads == 100
+    assert s.schedule_end is None
+
+
+def test_event_catalog_includes_scheduling():
+    assert "campaign.scheduled" in EVENTS
+    assert "campaign.unscheduled" in EVENTS

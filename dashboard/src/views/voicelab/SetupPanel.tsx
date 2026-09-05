@@ -5,7 +5,10 @@ type Engine = ReturnType<typeof useCallEngine>;
 
 /** Left-hand card shown before/after a call: agent picker + number + options. */
 export function SetupPanel({ e }: { e: Engine }) {
-  const { selectedAgent, presetAgent, agents, phone, setPhone, typing, setTyping, lang } = e;
+  const {
+    selectedAgent, presetAgent, agents, phone, setPhone, typing, setTyping, lang,
+    voiceSupported, ttsSupported, speakOn, setSpeak,
+  } = e;
 
   return (
     <div style={{ textAlign: "left" }}>
@@ -56,7 +59,8 @@ export function SetupPanel({ e }: { e: Engine }) {
           className={`btn ${!typing ? "primary" : ""}`}
           style={{ flex: 1 }}
           onClick={() => setTyping(false)}
-          title="Speak through the mic — needs a real STT backend"
+          disabled={!voiceSupported}
+          title={voiceSupported ? "Speak — your voice is transcribed live" : "Voice input needs Chrome or Edge"}
         >
           🎙 Speak
         </button>
@@ -69,10 +73,25 @@ export function SetupPanel({ e }: { e: Engine }) {
           ⌨️ Type
         </button>
       </div>
-      {!typing && (
-        <div className="msg ok" style={{ marginTop: 8, fontSize: 12 }}>
-          Mic mode needs a working STT backend. With <code>STT_BACKEND=mock</code> you'll hear silence — type instead.
+      {!typing && !voiceSupported && (
+        <div className="msg err" style={{ marginTop: 8, fontSize: 12 }}>
+          Voice input needs Chrome/Edge (Web Speech API). Please type instead, or plug a real STT backend.
         </div>
+      )}
+      {!typing && voiceSupported && (
+        <div className="msg ok" style={{ marginTop: 8, fontSize: 12 }}>
+          🎙 Your voice is transcribed live in the browser and the agent replies by speaking.
+        </div>
+      )}
+      {ttsSupported && (
+        <button
+          className="btn sm"
+          style={{ marginTop: 8 }}
+          onClick={() => setSpeak(!speakOn)}
+          title="Read agent replies aloud with the browser voice"
+        >
+          {speakOn ? "🔊 Agent replies spoken aloud" : "🔇 Agent replies muted"}
+        </button>
       )}
 
       <div style={{ display: "flex", gap: 8, marginTop: 14 }}>

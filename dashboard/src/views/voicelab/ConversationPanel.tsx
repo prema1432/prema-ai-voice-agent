@@ -37,7 +37,9 @@ export function ConversationPanel({ e }: { e: Engine }) {
           </div>
         </div>
         <div style={{ marginLeft: "auto", display: "flex", gap: 6, alignItems: "center" }}>
-          {connected && !typing && <span className="dot green pulse-dot" title="Mic live" />}
+          {connected && !typing && (
+            <span className="dot green pulse-dot" title={e.listening ? "Listening to you…" : "Mic ready"} />
+          )}
           {speakingNow && (
             <span className="badge green" style={{ animation: "fadeIn .3s ease" }}>
               <span className="wave"><i /><i /><i /></span> speaking
@@ -111,8 +113,10 @@ export function ConversationPanel({ e }: { e: Engine }) {
         {!connected
           ? "This simulated call uses the same agent, LLM (OpenRouter) and tool pipeline as a real outbound call."
           : typing
-            ? "Typing mode — your text goes through the exact same LLM reply & tool path as spoken words."
-            : "Mic mode — voice is transcribed locally, then sent to the same LLM. Use headphones to avoid echo."}
+            ? e.ttsSupported
+              ? "Typing mode — your text goes through the same LLM reply & tool path as speech, and the agent's replies are read aloud."
+              : "Typing mode — your text goes through the exact same LLM reply & tool path as spoken words."
+            : "Speak mode — your voice is transcribed live in the browser and sent to the same LLM. Use headphones to avoid echo."}
       </div>
     </Card>
   );

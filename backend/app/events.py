@@ -26,6 +26,8 @@ CHANNELS = ("in_app", "email", "sms", "whatsapp", "push", "webhook")
 # Event names emitted by the platform (used by webhook subscriptions + UI).
 EVENTS = [
     "campaign.created",
+    "campaign.scheduled",
+    "campaign.unscheduled",
     "campaign.started",
     "campaign.paused",
     "campaign.completed",

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AgentDirectoryItem, AgentPersona, api } from "../../api";
+import { SpeechRecLike, VOICE_LANGS, hasSpeechRec, hasTts, pickVoice } from "./speech";
 
 export type Turn = { role: string; text: string; language?: string };
 export type CallPhase = "idle" | "dialing" | "ringing" | "connected" | "ended";
@@ -35,8 +36,17 @@ export function useCallEngine(presetAgentId?: string) {
   const [sending, setSending] = useState(false);
   const [input, setInput] = useState("");
   const [agentSpeaking, setAgentSpeaking] = useState(false);
+  const [listening, setListening] = useState(false);
+  const [speakOn, setSpeakOn] = useState(true);
 
   const wsRef = useRef<WebSocket | null>(null);
+  const recRef = useRef<SpeechRecLike | null>(null);
+  const audioSeenRef = useRef(false);
+  const speakOnRef = useRef(true);
+  const phaseRef = useRef(phase);
+  phaseRef.current = phase;
+  const typingRef = useRef(typing);
+  typingRef.current = typing;
   const audioCtxRef = useRef<AudioContext | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const procRef = useRef<ScriptProcessorNode | null>(null);
@@ -97,6 +107,120 @@ export function useCallEngine(presetAgentId?: string) {
     if (speakTimerRef.current) window.clearTimeout(speakTimerRef.current);
     speakTimerRef.current = window.setTimeout(() => setAgentSpeaking(false), 2400);
   };
+
+  const setSpeak = (on: boolean) => {
+    speakOnRef.current = on;
+    setSpeakOn(on);
+    if (!on && hasTts) window.speechSynthesis.cancel();
+  };
+
+  /** Read one agent reply aloud using the OS/browser voice for the language. */
+  function speakAgent(text: string, langCode?: string) {
+    if (!hasTts || !speakOnRef.current || audioSeenRef.current) return;
+    try {
+      const synth = window.speechSynthesis;
+      synth.cancel();
+      const u = new SpeechSynthesisUtterance(text.replace(/[*_~`#]+/g, " "));
+      const v = pickVoice(langCode);
+      if (v) {
+        u.voice = v;
+        u.lang = v.lang;
+      } else {
+        u.lang = VOICE_LANGS[langCode ?? ""] ?? "en-IN";
+      }
+      u.rate = 1.0;
+      u.onstart = () => setAgentSpeaking(true);
+      u.onend = () => {
+        setAgentSpeaking(false);
+        if (recRef.current) {
+          try {
+            recRef.current.start();
+          } catch {
+            /* already running */
+          }
+        }
+      };
+      u.onerror = () => setAgentSpeaking(false);
+      synth.speak(u);
+    } catch {
+      /* speech synthesis is best-effort */
+    }
+  }
+
+  /** Restart the mic listener after a user turn (Chrome stops it periodically). */
+  function keepListening() {
+    const rec = recRef.current;
+    if (!rec) return;
+    try {
+      rec.stop();
+    } catch {
+      /* idle */
+    }
+    window.setTimeout(() => {
+      if (
+        phaseRef.current === "connected" &&
+        !typingRef.current &&
+        wsRef.current?.readyState === WebSocket.OPEN
+      ) {
+        try {
+          rec.start();
+        } catch {
+          /* restart failed */
+        }
+      }
+    }, 250);
+  }
+
+  /** Browser Web Speech: real-time user voice → text → the LLM loop. */
+  function startRecognition() {
+    const w = window as unknown as Record<string, unknown>;
+    const Ctor =
+      (w.SpeechRecognition as new () => SpeechRecLike) ??
+      (w.webkitSpeechRecognition as new () => SpeechRecLike);
+    if (!Ctor) return;
+    const rec = new Ctor();
+    recRef.current = rec;
+    rec.continuous = true;
+    rec.interimResults = true;
+    rec.lang = VOICE_LANGS[lang] ?? "en-IN";
+    rec.onstart = () => setListening(true);
+    rec.onerror = () => setListening(false);
+    rec.onend = () => setListening(false);
+    rec.onresult = (ev) => {
+      let finalText = "";
+      for (let i = ev.resultIndex; i < ev.results.length; i++) {
+        if (ev.results[i].isFinal) finalText += ev.results[i][0].transcript;
+      }
+      finalText = finalText.trim();
+      if (!finalText) return;
+      // Barge-in: the caller talking cuts off any pending agent speech.
+      if (hasTts) window.speechSynthesis.cancel();
+      setAgentSpeaking(false);
+      const ws = wsRef.current;
+      if (ws?.readyState === WebSocket.OPEN && phaseRef.current === "connected") {
+        ws.send(JSON.stringify({ type: "user_text", text: finalText }));
+      }
+      keepListening();
+    };
+    try {
+      rec.start();
+    } catch {
+      /* not allowed yet */
+    }
+  }
+
+  function stopRecognition() {
+    const rec = recRef.current;
+    if (rec) {
+      try {
+        rec.abort();
+      } catch {
+        /* noop */
+      }
+    }
+    recRef.current = null;
+    setListening(false);
+  }
 
   /** Simulated carrier progress: dialing → ringing → answered. */
   function dial() {
@@ -173,7 +297,10 @@ export function useCallEngine(presetAgentId?: string) {
           ...prev,
           { role, text: msg.text as string, language: (msg.language as string) ?? undefined },
         ]);
-        if (role === "agent") markSpeaking();
+        if (role === "agent") {
+          markSpeaking();
+          speakAgent(msg.text as string, (msg.language as string) ?? lang);
+        }
       } else if (msg.type === "interrupted") {
         setAgentSpeaking(false);
       } else if (msg.type === "ended") {
@@ -195,7 +322,10 @@ export function useCallEngine(presetAgentId?: string) {
       setError("WebSocket error — is the backend running and the /api proxy up?");
     };
 
-    if (!typing) attachMic(ws);
+    if (!typing) {
+      if (hasSpeechRec) startRecognition();
+      else attachMic(ws); // fallback: raw PCM frames to a server STT backend
+    }
   }
 
   /** Mic capture → 8kHz PCM16 frames (used when Speak mode is on). */
@@ -264,6 +394,13 @@ export function useCallEngine(presetAgentId?: string) {
     streamRef.current = null;
     procRef.current?.disconnect();
     procRef.current = null;
+    if (audioCtxRef.current && audioCtxRef.current.state !== "closed") {
+      audioCtxRef.current.close().catch(() => {});
+    }
+    audioCtxRef.current = null;
+    stopRecognition();
+    if (hasTts) window.speechSynthesis.cancel();
+    setAgentSpeaking(false);
   }
 
   function sendText() {
@@ -303,5 +440,7 @@ export function useCallEngine(presetAgentId?: string) {
     error, phone, setPhone, agents, presetAgent, selectedAgent: presetAgent,
     setPresetAgent, typing, setTyping, sending, input, setInput, agentSpeaking,
     speakingNow, callLabel, dial, hangUp, sendText, pickAgent, transRef,
+    listening, speakOn, setSpeak,
+    voiceSupported: hasSpeechRec, ttsSupported: hasTts,
   };
 }

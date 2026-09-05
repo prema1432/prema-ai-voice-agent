@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { api } from "./api";
 import { NotificationBell } from "./components/NotificationBell";
+import ModelPicker from "./components/ModelPicker";
 import { parseRoute } from "./router";
 import { getTheme, initTheme, toggleTheme, Theme } from "./theme";
 import Dashboard from "./views/Dashboard";
@@ -40,8 +41,22 @@ const NAV = [
   { key: "calls", label: "Call Logs", icon: "📞", path: "calls" },
   { key: "llm", label: "LLM & Cost", icon: "🧠", path: "llm" },
   { key: "integrations", label: "Integrations", icon: "🔌", path: "integrations" },
+  { key: "notifications", label: "Notifications", icon: "🔔", path: "notifications" },
   { key: "audit", label: "Audit Logs", icon: "🧾", path: "audit" },
 ] as const;
+
+const FOOT_LINKS: { label: string; path: string }[] = [
+  { label: "Dashboard", path: "" },
+  { label: "Campaigns", path: "campaigns" },
+  { label: "CRM Pipeline", path: "crm" },
+  { label: "Voice Lab", path: "voicelab" },
+  { label: "Agents", path: "agents" },
+  { label: "Call Logs", path: "calls" },
+  { label: "LLM & Cost", path: "llm" },
+  { label: "Integrations", path: "integrations" },
+  { label: "Notifications", path: "notifications" },
+  { label: "Audit Logs", path: "audit" },
+];
 
 function isActive(routeName: string, key: string): boolean {
   if (key === "campaigns") return routeName === "campaigns" || routeName === "campaign-detail";
@@ -92,6 +107,8 @@ function App() {
           </button>
         ))}
 
+        <ModelPicker />
+
         <div className="sidebar-foot">
           <NotificationBell />
           <button className="theme-toggle" data-on={theme} onClick={changeTheme}>
@@ -116,7 +133,44 @@ function App() {
       </aside>
 
       <main className="main">
-        <div key={route.name + ("id" in route ? route.id : "") + ("campaignId" in route ? route.campaignId ?? "" : "") + ("agentId" in route ? route.agentId ?? "" : "")} className="fade-up">
+        <header className="topbar">
+          <div className="topbar-brand" onClick={() => (location.hash = "#/")}>
+            <span className="mark">🎙️</span>
+            <span>
+              <b>Prema AI</b> <em>Voice Agent</em>
+            </span>
+          </div>
+          <nav className="topbar-links">
+            <button onClick={() => (location.hash = "#/notifications")}>🔔 Notifications</button>
+            <button onClick={() => (location.hash = "#/audit")}>🧾 Audit Logs</button>
+            <button onClick={() => (location.hash = "#/integrations")}>🔌 Integrations</button>
+            <button onClick={() => (location.hash = "#/llm")}>🧠 LLM & Cost</button>
+            <button onClick={() => (location.hash = "#/crm")}>🗂 CRM Pipeline</button>
+          </nav>
+          <div className="topbar-status">
+            {health ? (
+              <>
+                <span className="pill">
+                  <span className={`dot ${llmKeySet ? "green" : "amber"}`} />
+                  LLM {llmKeySet ? "ready" : "no key"}
+                </span>
+                <span className="pill">
+                  <span className={`dot ${backendUp ? "green" : "red"}`} />
+                  {backendUp ? "online" : "offline"}
+                </span>
+              </>
+            ) : (
+              <span className="pill">
+                <span className="dot red" /> connecting…
+              </span>
+            )}
+          </div>
+        </header>
+
+        <div
+          key={route.name + ("id" in route ? route.id : "") + ("campaignId" in route ? route.campaignId ?? "" : "") + ("agentId" in route ? route.agentId ?? "" : "")}
+          className="page-wrap fade-up"
+        >
           {route.name === "dashboard" && <Dashboard health={health} />}
           {route.name === "campaigns" && <Campaigns />}
           {route.name === "campaign-detail" && <CampaignDetail id={route.id} />}
@@ -130,6 +184,21 @@ function App() {
           {route.name === "integrations" && <Integrations />}
           {route.name === "audit" && <AuditLogs />}
         </div>
+
+        <footer className="footer">
+          <div>
+            <b>🎙️ Prema AI Voice Agent</b>
+            <span>Self-hosted AI calling for Indian numbers &amp; regional languages · OpenRouter LLM · MongoDB</span>
+          </div>
+          <nav className="footer-links">
+            {FOOT_LINKS.map((l) => (
+              <button key={l.path} onClick={() => (location.hash = `#/${l.path}`)}>
+                {l.label}
+              </button>
+            ))}
+          </nav>
+          <div className="footer-legal">© 2026 Prema AI Voice Agent · Built by Premanath Talamarla</div>
+        </footer>
       </main>
     </div>
   );

@@ -6,7 +6,7 @@ type Engine = ReturnType<typeof useCallEngine>;
 
 /** Live call chrome shown once the call is dialing/ringing/connected. */
 export function LiveCallPanel({ e }: { e: Engine }) {
-  const { phase, name, mm, ss, speakingNow, selectedAgent, lang, error, agents } = e;
+  const { phase, name, mm, ss, speakingNow, selectedAgent, lang, error, agents, listening } = e;
   const agent =
     selectedAgent ??
     agents?.find((a) => a.name === name) ??
@@ -45,6 +45,12 @@ export function LiveCallPanel({ e }: { e: Engine }) {
         {mm}:{ss}
       </div>
 
+      {listening && (
+        <div className="badge blue" style={{ marginTop: 6 }}>
+          <span className="wave" style={{ color: "inherit" }}><i /><i /><i /></span>
+          listening… speak now
+        </div>
+      )}
       {error && <div className="msg err" style={{ fontSize: 12 }}>{error}</div>}
     </div>
   );

@@ -22,6 +22,9 @@ log = logging.getLogger(__name__)
 
 MAX_ATTEMPTS = 3
 
+# Rotates which team agent takes the next call (round-robin across campaigns).
+_SPIN = __import__("itertools").count()
+
 
 def _log_task_crash(task: "asyncio.Task") -> None:
     if task.cancelled():
@@ -42,7 +45,12 @@ class CampaignRunner:
     async def run(self) -> None:
         log.info("campaign %s: runner started", self.campaign_id)
         provider = get_provider(None)
-        semaphore = asyncio.Semaphore(settings.max_concurrent_calls)
+        # Each campaign spins up to its own `concurrency` agents in parallel.
+        initial = await collection("campaigns").find_one(
+            {"_id": oid(self.campaign_id)}, {"concurrency": 1}
+        )
+        cap = int((initial or {}).get("concurrency") or settings.max_concurrent_calls)
+        semaphore = asyncio.Semaphore(max(1, cap))
 
         while not self._stop.is_set():
             campaign = await collection("campaigns").find_one({"_id": oid(self.campaign_id)})
@@ -119,7 +127,7 @@ class CampaignRunner:
             await asyncio.sleep(60)
             return
 
-        persona = _persona_for(campaign, lead)
+        persona = await _persona_for(campaign, lead)
         call_id = await calls_svc.create_call_session(
             campaign_id=self.campaign_id,
             lead_id=str(lead["_id"]),
@@ -187,7 +195,32 @@ class _NoopSink:
         pass
 
 
-def _persona_for(campaign: dict, lead: dict) -> AgentPersona:
+async def _persona_for(campaign: dict, lead: dict) -> AgentPersona:
+    """Pick the persona for one call.
+
+    When the campaign lists a team (`team_agent_ids`), calls rotate through
+    those directory agents — that is what 'spin N dynamic agents' means: up to
+    `concurrency` of them run at once and each call gets a team member. Falls
+    back to the inline campaign agent otherwise.
+    """
+    team_ids = campaign.get("team_agent_ids") or []
+    if team_ids:
+        try:
+            docs = await collection("agent_configs").find(
+                {"_id": {"$in": [oid(i) for i in team_ids]}}
+            ).to_list(50)
+            team = [d for d in docs if d.get("name")]
+            if team:
+                doc = team[next(_SPIN) % len(team)]
+                cfg = {k: v for k, v in doc.items()
+                       if k not in ("_id", "created_at", "updated_at")}
+                persona = AgentPersona(**cfg)
+                if lead.get("language"):
+                    persona.primary_language = lead["language"]
+                return persona
+        except Exception:  # noqa: BLE001 — team pick failure falls back to inline
+            log.exception("team persona lookup failed; using inline agent")
+
     agent = campaign.get("agent") or {}
     persona = AgentPersona(
         name=agent.get("name", "Agent"),

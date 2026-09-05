@@ -36,6 +36,11 @@ export interface Campaign {
   agent?: AgentPersona | null;
   stats?: Record<string, unknown>;
   created_at?: string;
+  schedule_start?: string | null;
+  schedule_end?: string | null;
+  expected_leads?: number | null;
+  team_agent_ids?: string[];
+  crm_stages?: CrmStage[];
 }
 
 export interface Lead {
@@ -249,15 +254,36 @@ export const api = {
   getCampaign: (id: string) => req<Campaign>(`/campaigns/${id}`),
   createCampaign: (body: unknown) =>
     req<{ id: string }>("/campaigns", { method: "POST", body: JSON.stringify(body) }),
+  updateCampaign: (id: string, body: unknown) =>
+    req<{ updated: boolean }>(`/campaigns/${id}`, { method: "PUT", body: JSON.stringify(body) }),
   startCampaign: (id: string) =>
     req<{ status: string }>(`/campaigns/${id}/start`, { method: "POST" }),
   pauseCampaign: (id: string) =>
     req<{ status: string }>(`/campaigns/${id}/pause`, { method: "POST" }),
+  scheduleCampaign: (
+    id: string,
+    body: {
+      schedule_start: string;
+      schedule_end?: string | null;
+      expected_leads?: number | null;
+      concurrency: number;
+      team_agent_ids?: string[];
+    },
+  ) => req<{ status: string }>(`/campaigns/${id}/schedule`, { method: "POST", body: JSON.stringify(body) }),
+  cancelSchedule: (id: string) =>
+    req<{ status: string }>(`/campaigns/${id}/cancel-schedule`, { method: "POST" }),
   deleteCampaign: (id: string) =>
     req<{ deleted: boolean }>(`/campaigns/${id}`, { method: "DELETE" }),
 
   // leads
   listLeads: (campaignId: string) => req<Lead[]>(`/leads?campaign_id=${campaignId}`),
+  updateLead: (leadId: string, body: Record<string, unknown>) =>
+    req<{ updated: boolean; id: string }>(`/leads/${leadId}`, {
+      method: "PUT",
+      body: JSON.stringify(body),
+    }),
+  deleteLead: (leadId: string) =>
+    req<{ deleted: boolean }>(`/leads/${leadId}`, { method: "DELETE" }),
   bulkAddLeads: (campaignId: string, leads: unknown[]) =>
     req<{ added: number; updated: number; invalid: string[]; dnd_skipped: number }>(
       `/leads/bulk?campaign_id=${campaignId}`,
@@ -296,6 +322,21 @@ export const api = {
   // llm
   llmStatus: () => req<LlmStatus>("/llm/status"),
   llmUsage: (days = 7) => req<LlmUsage>(`/llm/usage?days=${days}`),
+  llmModels: () => req<{ current: string; models: string[] }>("/llm/models"),
+  setLlmModel: (model: string) =>
+    req<{ model: string; persisted: boolean; previous: string }>("/llm/model", {
+      method: "PUT",
+      body: JSON.stringify({ model }),
+    }),
+  testLlm: (model?: string) =>
+    req<{
+      ok: boolean;
+      model: string;
+      reply?: string;
+      error?: string;
+      latency_ms: number;
+      usage?: { prompt_tokens: number; completion_tokens: number };
+    }>("/llm/test", { method: "POST", body: JSON.stringify({ model: model ?? null }) }),
 };
 
 export const LANGUAGES: Record<string, string> = {

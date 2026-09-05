@@ -31,6 +31,10 @@ async def lifespan(app: FastAPI):
     from app import events
     events.start_delivery_worker()
 
+    # Scheduler: auto-start campaigns armed with a schedule_start.
+    from app.services.scheduler import start_scheduler
+    start_scheduler()
+
     # Resume dialers for campaigns that were 'running' before a restart —
     # runners live in-process, so without this they silently die on redeploy.
     from app.db import collection
@@ -46,7 +50,9 @@ async def lifespan(app: FastAPI):
 
     yield
     from app.services import dialer
+    from app.services.scheduler import stop_scheduler
 
+    stop_scheduler()
     for campaign_id in list(dialer.RUNNERS):
         dialer.stop_campaign(campaign_id)
     await close_db()

@@ -182,15 +182,18 @@ class CampaignIn(BaseModel):
     config: Config = Field(default_factory=Config)
     scripts: list[str] = Field(default_factory=lambda: [{"script": "Telugu", "start": 0x0C00, "end": 0x0C7F}])
     formats: list[TurnFormat] = Field(default_factory=lambda: ["native"])
-    name: str
-    description: str = ""
     agent_config_id: str | None = None
     # Inline agent definition (used if agent_config_id is None)
     agent: AgentPersona | None = None
     languages: list[str] = Field(default_factory=lambda: ["hi"])
     concurrency: int = Field(default=1, ge=1, le=50)
+    # ── Run scheduling & goals ───────────────────────────────────────────────
     schedule_start: datetime | None = None
-    schedule_end: datetime | None = None
+    schedule_end: datetime | None = None   # optional auto-pause time
+    expected_leads: int | None = Field(default=None, ge=1, le=1_000_000)
+    # Team of agent-directory agents to spin. When set, the dialer rotates
+    # through these personas across calls instead of using the inline agent.
+    team_agent_ids: list[str] = Field(default_factory=list)
     # Execution backend: "mock" runs the pipeline without telephony, "asterisk"
     # places real calls via ARI.
     dial_provider: Literal["mock", "asterisk"] = "mock"
@@ -210,6 +213,18 @@ class CampaignOut(BaseModel):
     created_at: datetime | None = None
 
 
+# ── Campaign scheduling ─────────────────────────────────────────────────────
+class CampaignScheduleIn(BaseModel):
+    """Schedule a campaign to auto-run at a future time with spin + goals."""
+    schedule_start: datetime
+    schedule_end: datetime | None = None
+    expected_leads: int | None = Field(default=None, ge=1, le=1_000_000)
+    # How many agent sessions to spin concurrently (max simultaneous calls).
+    concurrency: int = Field(default=1, ge=1, le=50)
+    # Agent-directory team to rotate across calls (empty = inline campaign agent).
+    team_agent_ids: list[str] = Field(default_factory=list)
+
+
 # ── Leads ────────────────────────────────────────────────────────────────────
 LeadStatus = Literal[
     "new", "dialing", "in_progress", "completed", "failed", "dnd", "skipped"
@@ -226,6 +241,18 @@ class LeadIn(BaseModel):
 class LeadBulkIn(BaseModel):
     leads: list[LeadIn] = Field(min_length=1, max_length=5000)
     upsert: bool = True  # re-adding a phone updates extra fields instead of failing
+
+
+class LeadUpdateIn(BaseModel):
+    """Partial update for a single lead (all fields optional)."""
+    phone: str | None = None
+    name: str | None = None
+    language: str | None = None
+    status: str | None = None
+    stage: str | None = None
+    # free-form notes / guidelines shown to the agent on the next call
+    notes: str | None = None
+    extra: dict[str, Any] | None = None
 
 
 class LeadOut(BaseModel):

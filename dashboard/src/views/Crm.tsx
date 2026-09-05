@@ -92,6 +92,16 @@ export default function Crm({ campaignId }: { campaignId?: string }) {
     saveStages(board.stages.filter((s) => s.id !== id));
   }
 
+  function colorStage(id: string, color: string) {
+    if (!board) return;
+    saveStages(board.stages.map((s) => (s.id === id ? { ...s, color } : s)));
+  }
+
+  function toggleTerminal(id: string) {
+    if (!board) return;
+    saveStages(board.stages.map((s) => (s.id === id ? { ...s, terminal: !s.terminal } : s)));
+  }
+
   function addStage(name: string) {
     if (!board || !name.trim()) return;
     saveStages([
@@ -182,7 +192,24 @@ export default function Crm({ campaignId }: { campaignId?: string }) {
                 onBlur={(e) => renameStage(s.id, e.target.value)}
               />
               <span className="count">{byCount[s.id] ?? 0}</span>
-
+              <input
+                type="color"
+                value={s.color}
+                title="Column color"
+                disabled={savingStages}
+                onChange={(e) => colorStage(s.id, e.target.value)}
+                style={{ width: 22, height: 22, padding: 0, border: "none", background: "transparent", cursor: "pointer" }}
+              />
+              <button
+                type="button"
+                className="btn ghost sm"
+                title={s.terminal ? "Terminal stage — outcome is recorded" : "Open stage"}
+                disabled={savingStages}
+                onClick={() => toggleTerminal(s.id)}
+                style={{ fontSize: 11, padding: "2px 6px" }}
+              >
+                {s.terminal ? "🎯" : "○"}
+              </button>
               <button className="btn ghost sm del" title="Remove stage" onClick={() => removeStage(s.id)} disabled={board.stages.length <= 1}>
                 ✕
               </button>

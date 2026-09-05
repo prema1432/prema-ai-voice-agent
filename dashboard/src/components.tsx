@@ -20,7 +20,9 @@ export function StatusBadge({ status }: { status?: string | null }) {
       : s === "paused" || s === "callback_requested" || s === "new" || s === "dialing"
         ? "amber"
         : s === "failed" || s === "not_interested" || s === "dnd"
-          ? "red"
+        ? "red"
+        : s === "scheduled"
+          ? "violet"
           : s === "in_progress"
             ? "blue"
             : "gray";

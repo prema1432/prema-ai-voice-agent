@@ -15,7 +15,7 @@ from fastapi.responses import StreamingResponse
 
 from app.db import collection
 from app.phone_utils import clean_phone, is_dnd, is_valid_indian_mobile
-from app.schemas import LeadBulkIn, LeadIn
+from app.schemas import LeadBulkIn, LeadIn, LeadUpdateIn
 
 router = APIRouter(prefix="/leads", tags=["leads"])
 
@@ -149,9 +149,61 @@ async def get_lead(lead_id: str) -> dict:
     return _out(doc)
 
 
+@router.put("/{lead_id}")
+async def update_lead(lead_id: str, body: LeadUpdateIn) -> dict:
+    """Edit an existing lead (name/phone/language/status/stage/notes/extra)."""
+    from app.events import audit, emit
+
+    doc = await collection("leads").find_one({"_id": ObjectId(lead_id)})
+    if not doc:
+        raise HTTPException(404, "lead not found")
+
+    patch: dict = {}
+    data = body.model_dump(exclude_unset=True)
+
+    phone = data.get("phone")
+    if phone:
+        phone = clean_phone(phone)
+        if not is_valid_indian_mobile(phone):
+            raise HTTPException(400, f"invalid phone: {phone}")
+        patch["phone"] = phone
+
+    for key in ("name", "language", "status", "stage"):
+        if key in data:
+            value = data[key]
+            patch[key] = (value or None) if key != "status" else value
+    # notes live in `extra.notes` (they surface in the agent's lead context)
+    if "notes" in data and "extra" not in data:
+        extra = dict(doc.get("extra") or {})
+        if data["notes"] is not None:
+            extra["notes"] = data["notes"]
+        else:
+            extra.pop("notes", None)
+        patch["extra"] = extra
+    if "extra" in data and data["extra"] is not None:
+        extra = dict(doc.get("extra") or {})
+        extra.update(data["extra"])
+        patch["extra"] = extra
+
+    if not patch:
+        return {"updated": False, "id": lead_id}
+    patch["updated_at"] = datetime.now(timezone.utc)
+    await collection("leads").update_one({"_id": ObjectId(lead_id)}, {"$set": patch})
+    await audit("lead.updated", entity_type="lead", entity_id=lead_id,
+                meta={"campaign_id": doc.get("campaign_id"), "fields": sorted(patch)})
+    emit("lead.updated", {"lead_id": lead_id, "campaign_id": doc.get("campaign_id")})
+    return {"updated": True, "id": lead_id}
+
+
 @router.delete("/{lead_id}")
 async def delete_lead(lead_id: str) -> dict:
-    await collection("leads").delete_one({"_id": ObjectId(lead_id)})
+    from app.events import audit
+
+    doc = await collection("leads").find_one_and_delete({"_id": ObjectId(lead_id)})
+    if not doc:
+        raise HTTPException(404, "lead not found")
+    await audit("lead.deleted", entity_type="lead", entity_id=lead_id,
+                meta={"campaign_id": doc.get("campaign_id"), "phone": doc.get("phone")})
     return {"deleted": True}
 
 

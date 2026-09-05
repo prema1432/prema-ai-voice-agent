@@ -12,6 +12,9 @@ import {
   fmtDate,
 } from "../components";
 import { navigate } from "../router";
+import CampaignRunCard from "./campaigns/RunPlanner";
+import LeadEditModal from "./campaigns/LeadEditModal";
+import PipelineModal from "./campaigns/PipelineModal";
 
 type CampaignStats = {
   total?: number;
@@ -31,6 +34,8 @@ export default function CampaignDetail({ id }: { id: string }) {
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [rows, setRows] = useState<LeadRow[]>([]);
+  const [editLead, setEditLead] = useState<Lead | null>(null);
+  const [pipelineOpen, setPipelineOpen] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -147,6 +152,24 @@ export default function CampaignDetail({ id }: { id: string }) {
     }
   }
 
+  async function removeLead(l: Lead) {
+    if (!window.confirm(`Delete lead ${l.name ?? l.phone}?`)) return;
+    setBusy(true);
+    try {
+      await api.deleteLead(l.id);
+      await load();
+    } catch (e) {
+      setMsg({ ok: false, text: String(e).slice(0, 300) });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const leadNotes = (l: Lead) => {
+    const n = (l.extra as Record<string, unknown> | undefined)?.notes;
+    return typeof n === "string" ? n : "";
+  };
+
   const leadLang = (l: Lead) =>
     l.language
       ? l.language
@@ -181,6 +204,7 @@ export default function CampaignDetail({ id }: { id: string }) {
             </Button>
           )}
           <Button onClick={() => navigate(`crm/${id}`)}>🗂 CRM board</Button>
+          <Button onClick={() => setPipelineOpen(true)}>⚙ Pipeline</Button>
           <a className="btn" href={api.exportCsv(id)} download>
             ⬇ Export CSV
           </a>
@@ -213,8 +237,12 @@ export default function CampaignDetail({ id }: { id: string }) {
           value={outcomes.interested ?? 0}
           icon="🔥"
           tone="amber"
-          sub={`${outcomes.callback_requested ?? 0} callbacks requested`}
+          sub={`${outcomes.callback_requested ?? 0} callbacks requested${campaign.expected_leads ? ` · target ≥${campaign.expected_leads}` : ""}`}
         />
+      </div>
+
+      <div style={{ marginBottom: 16 }}>
+        <CampaignRunCard campaign={campaign} onUpdate={load} />
       </div>
 
       <div className="grid-2" style={{ alignItems: "start" }}>
@@ -363,7 +391,8 @@ export default function CampaignDetail({ id }: { id: string }) {
                       <th>Status</th>
                       <th>Outcome</th>
                       <th>Calls</th>
-                      <th>Last call</th>
+                      <th>Notes</th>
+                      <th style={{ textAlign: "right" }}>Actions</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -379,8 +408,22 @@ export default function CampaignDetail({ id }: { id: string }) {
                         </td>
                         <td>{l.last_outcome ? <Badge tone="gray">{l.last_outcome}</Badge> : <span style={{ color: "var(--text-faint)" }}>—</span>}</td>
                         <td className="num">{l.call_count ?? 0}</td>
-                        <td style={{ color: "var(--text-muted)", fontSize: 12 }}>
-                          {l.last_call_at ? fmtDate(l.last_call_at) : "—"}
+                        <td style={{ color: "var(--text-muted)", fontSize: 12, maxWidth: 180 }}>
+                          {leadNotes(l) ? (
+                            <span title={leadNotes(l)}>{leadNotes(l).slice(0, 40)}{leadNotes(l).length > 40 ? "…" : ""}</span>
+                          ) : (
+                            <span style={{ color: "var(--text-faint)" }}>—</span>
+                          )}
+                        </td>
+                        <td>
+                          <div className="lead-actions">
+                            <Button size="sm" variant="ghost" title="Edit lead" onClick={() => setEditLead(l)}>
+                              ✎
+                            </Button>
+                            <Button size="sm" variant="ghost" title="Delete lead" disabled={busy} onClick={() => removeLead(l)}>
+                              🗑
+                            </Button>
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -391,6 +434,28 @@ export default function CampaignDetail({ id }: { id: string }) {
           </Card>
         </div>
       </div>
+
+      {editLead && (
+        <LeadEditModal
+          lead={editLead}
+          onClose={() => setEditLead(null)}
+          onSaved={() => {
+            setEditLead(null);
+            load();
+          }}
+        />
+      )}
+      {pipelineOpen && (
+        <PipelineModal
+          campaignId={id}
+          stages={campaign.crm_stages ?? [{ id: "new", name: "New", color: "#6366f1", terminal: false }]}
+          onClose={() => setPipelineOpen(false)}
+          onSaved={() => {
+            setPipelineOpen(false);
+            load();
+          }}
+        />
+      )}
     </div>
   );
 }

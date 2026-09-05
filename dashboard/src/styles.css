@@ -178,6 +178,7 @@ code {
   font-size: 12px; font-family: inherit; cursor: pointer;
   transition: background 0.15s, color 0.15s;
 }
+.theme-group { display: inline-flex; align-items: center; gap: 7px; }
 .theme-toggle:hover { color: var(--text); }
 .theme-toggle .sw { position: relative; width: 34px; height: 18px; border-radius: 99px; background: var(--border); transition: background 0.2s; flex: none; }
 .theme-toggle[data-on="dark"] .sw { background: var(--gradient); }
@@ -362,12 +363,57 @@ input[type="file"]::file-selector-button:hover { background: var(--card-hover); 
 .value { font-size: 26px; font-weight: 750; letter-spacing: -0.02em; }
 .sub { color: var(--text-muted); }
 
+/* ── Collapsible sidebar (icons-only mode) ─────────────── */
+.side-toggle {
+  margin-left: auto; flex: none;
+  width: 26px; height: 26px; border-radius: 8px;
+  border: 1px solid var(--border); background: var(--well); color: var(--text-muted);
+  font-size: 12px; line-height: 1; cursor: pointer; font-family: inherit;
+  transition: border-color 0.15s, color 0.15s;
+}
+.side-toggle:hover { color: var(--text); border-color: var(--accent-1); }
+
+/* Icons-only mode applies on desktop; mobile keeps the full strip. */
+@media (min-width: 981px) {
+  .app-shell.sidebar-min { grid-template-columns: 64px 1fr; }
+  .sidebar.collapsed { padding: 20px 10px; }
+  .sidebar.collapsed .lbl { display: none; }
+  .sidebar.collapsed .brand { display: none; }
+  .sidebar.collapsed .sidebar-logo {
+    flex-direction: column; gap: 8px; padding: 4px 0 14px;
+  }
+  .sidebar.collapsed .side-toggle { margin-left: 0; }
+  .sidebar.collapsed .nav-item {
+    justify-content: center; gap: 0; padding: 10px 0;
+  }
+  .sidebar.collapsed .nav-item .ic { width: auto; font-size: 16px; }
+  .sidebar.collapsed .nav-item:hover { transform: none; }
+  .sidebar.collapsed .model-picker {
+    width: 100%; display: flex; flex-direction: column; align-items: center;
+  }
+  .sidebar.collapsed .mp-head {
+    justify-content: center; padding: 8px 0; width: 100%;
+  }
+  .sidebar.collapsed .mp-label,
+  .sidebar.collapsed .mp-cur,
+  .sidebar.collapsed .mp-caret,
+  .sidebar.collapsed .mp-actions { display: none; }
+  .sidebar.collapsed .mp-list { left: 0; right: 0; }
+  .sidebar.collapsed .sidebar-foot { align-items: center; padding: 12px 0 4px; }
+  .sidebar.collapsed .theme-toggle {
+    justify-content: center; padding: 7px 0; width: 100%;
+  }
+  .sidebar.collapsed .theme-toggle .sw { display: none; }
+  .sidebar.collapsed .bell-btn { justify-content: center; }
+}
+
 /* phone-call chrome (Voice Lab) */
 .call-ring { border-radius: 50%; display: grid; place-items: center; background: rgba(16, 185, 129, 0.14); animation: rings 1.4s ease-out infinite; }
 .call-timer { font-family: "SF Mono", ui-monospace, monospace; font-size: 15px; font-variant-numeric: tabular-nums; }
 
 @media (max-width: 980px) {
   .app-shell { grid-template-columns: 1fr; }
+  .side-toggle { display: none; }
   .sidebar { position: static; height: auto; flex-direction: row; flex-wrap: wrap; align-items: center; border-right: none; border-bottom: 1px solid var(--border); padding: 12px; }
   .sidebar-logo { padding: 0 10px 0 0; }
   .sidebar-foot { margin-left: auto; border-top: none; padding: 0; }

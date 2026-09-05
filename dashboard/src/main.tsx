@@ -85,6 +85,12 @@ function App() {
   const [health, setHealth] = useState<Record<string, unknown> | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [theme, setTheme] = useState<Theme>(getTheme());
+  const [collapsed, setCollapsed] = useState<boolean>(
+    () => localStorage.getItem("prema.sidebar.collapsed") === "1",
+  );
+  useEffect(() => {
+    localStorage.setItem("prema.sidebar.collapsed", collapsed ? "1" : "0");
+  }, [collapsed]);
 
   useEffect(() => {
     const ping = () => api.health().then(setHealth).catch((e) => setErr(String(e)));
@@ -117,14 +123,21 @@ function App() {
   }
 
   return (
-    <div className="app-shell">
-      <aside className="sidebar">
+    <div className={`app-shell ${collapsed ? "sidebar-min" : ""}`}>
+      <aside className={`sidebar ${collapsed ? "collapsed" : ""}`}>
         <div className="sidebar-logo">
           <div className="mark">🎙️</div>
-          <div>
+          <div className="brand">
             <div className="name">Prema AI<br />Voice Agent</div>
             <div className="tag">Voice CRM</div>
           </div>
+          <button
+            className="side-toggle"
+            onClick={() => setCollapsed((c) => !c)}
+            title={collapsed ? "Expand sidebar" : "Collapse sidebar to icons"}
+          >
+            {collapsed ? "»" : "«"}
+          </button>
         </div>
 
         {NAV.map((n) => (
@@ -134,7 +147,7 @@ function App() {
             onClick={() => navigate(n.path)}
           >
             <span className="ic">{n.icon}</span>
-            {n.label}
+            <span className="lbl">{n.label}</span>
           </button>
         ))}
 
@@ -142,22 +155,25 @@ function App() {
 
         <div className="sidebar-foot">
           <NotificationBell />
-          <button className="theme-toggle" data-on={theme} onClick={changeTheme}>
-            <span>{theme === "light" ? "☀️ Light" : "🌙 Dark"}</span>
+          <button className="theme-toggle" data-on={theme} onClick={changeTheme} title="Toggle theme">
+            <span className="theme-group">
+              <span className="theme-ic">{theme === "light" ? "☀️" : "🌙"}</span>
+              <span className="lbl">{theme === "light" ? "Light" : "Dark"}</span>
+            </span>
             <span className="sw" />
           </button>
           <span className="pill">
             <span className={`dot ${llmKeySet ? "green" : "amber"}`} />
-            LLM key {llmKeySet ? "set" : "missing"}
+            <span className="lbl">LLM key {llmKeySet ? "set" : "missing"}</span>
           </span>
           <span className="pill">
             <span className={`dot ${backendUp ? "green" : "red"}`} />
-            backend {backendUp ? "online" : "unreachable"}
+            <span className="lbl">backend {backendUp ? "online" : "unreachable"}</span>
           </span>
           {backendUp && (
             <span className="pill">
               <span className="dot blue" />
-              {String(health?.telephony ?? "unknown")}
+              <span className="lbl">{String(health?.telephony ?? "unknown")}</span>
             </span>
           )}
         </div>

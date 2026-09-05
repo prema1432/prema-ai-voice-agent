@@ -1,0 +1,36 @@
+# env / secrets
+.env
+*.env.local
+
+# python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+*.egg-info/
+
+# node
+node_modules/
+dashboard/dist/
+*.tsbuildinfo
+
+# data / media
+recordings/
+*.wav
+*.mp3
+*.onnx
+!tests/fixtures/*.wav
+
+# editors / os
+.DS_Store
+.idea/
+.vscode/
+*.log
+
+# freebuff preview state (session-specific)
+.freebuff/diag.out
+.freebuff/lctest.out
+.freebuff/project-id
+.freebuff/t1.out

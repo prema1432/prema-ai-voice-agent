@@ -1,0 +1,59 @@
+services:
+  mongo:
+    image: mongo:7
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+    env_file: .env
+    environment:
+      MONGODB_URI: mongodb://mongo:27017
+      RECORDING_DIR: /data/recordings
+    ports:
+      - "8000:8000"
+    volumes:
+      - recordings:/data/recordings
+      # Uncomment to expose GPU to containers for self-hosted STT/TTS:
+      # - /dev/shm:/dev/shm
+    depends_on:
+      mongo:
+        condition: service_healthy
+    restart: unless-stopped
+
+  dashboard:
+    build:
+      context: ./dashboard
+      args:
+        VITE_API_URL: http://localhost:8000
+    volumes:
+      - ./dashboard/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    ports:
+      - "8080:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+  # ── Optional: self-hosted Asterisk for real telephony ────────────────────────
+  # Build the sample image in ./telephony/asterisk and point a licensed Indian
+  # SIP trunk at it. See telephony/README.md before enabling.
+  #
+  # asterisk:
+  #   build: ./telephony/asterisk
+  #   network_mode: host          # simplest way to keep RTP + ARI reachable
+  #   environment:
+  #     ARI_PASSWORD: change-me-ari-password
+  #   restart: unless-stopped
+
+volumes:
+  mongo-data:
+  recordings:

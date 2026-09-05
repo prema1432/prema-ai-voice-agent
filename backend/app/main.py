@@ -103,4 +103,8 @@ async def health() -> dict:
         "llm_model": settings.openrouter_llm_model,
         "llm_key_set": bool(settings.openrouter_api_key),
         "telephony": "asterisk" if settings.ari_base_url else "browser-only (no ARI)",
+        "user": {
+            "name": settings.admin_name,
+            "email": settings.admin_email,
+        },
     }

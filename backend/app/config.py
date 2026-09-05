@@ -26,6 +26,9 @@ class Settings:
     def __init__(self) -> None:
         self.app_name: str = os.getenv("APP_NAME", "prema-ai-voice-agent")
         self.env: str = os.getenv("ENV", "development")
+        # Account shown in the app header (set via env to rebrand).
+        self.admin_name: str = os.getenv("ADMIN_NAME", "Premanath Talamarla")
+        self.admin_email: str = os.getenv("ADMIN_EMAIL", "talamarlapremanath@gmail.com")
 
         # MongoDB
         self.mongo_uri: str = os.getenv("MONGODB_URI", "mongodb://localhost:27017")

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { api } from "./api";
+import GlobalSearch from "./components/GlobalSearch";
 import { NotificationBell } from "./components/NotificationBell";
 import ModelPicker from "./components/ModelPicker";
 import { navigate, parseRoute } from "./router";
@@ -115,6 +116,7 @@ function App() {
 
   const llmKeySet = health?.llm_key_set === true;
   const backendUp = !err && health != null;
+  const user = health?.user as { name: string; email: string } | undefined;
   const changeTheme = () => setTheme(toggleTheme());
 
   // Public share link: standalone page without the dashboard shell.
@@ -181,37 +183,24 @@ function App() {
 
       <main className="main">
         <header className="topbar">
-          <div className="topbar-brand" onClick={() => navigate("")}>
+          <div className="topbar-brand" onClick={() => navigate("")} title="Go to Dashboard">
             <span className="mark">🎙️</span>
-            <span>
+            <span className="brand-text">
               <b>Prema AI</b> <em>Voice Agent</em>
             </span>
           </div>
-          <nav className="topbar-links">
-            <button onClick={() => navigate("notifications")}>🔔 Notifications</button>
-            <button onClick={() => navigate("audit")}>🧾 Audit Logs</button>
-            <button onClick={() => navigate("integrations")}>🔌 Integrations</button>
-            <button onClick={() => navigate("llm")}>🧠 LLM & Cost</button>
-            <button onClick={() => navigate("crm")}>🗂 CRM Pipeline</button>
-          </nav>
-          <div className="topbar-status">
-            {health ? (
-              <>
-                <span className="pill">
-                  <span className={`dot ${llmKeySet ? "green" : "amber"}`} />
-                  LLM {llmKeySet ? "ready" : "no key"}
-                </span>
-                <span className="pill">
-                  <span className={`dot ${backendUp ? "green" : "red"}`} />
-                  {backendUp ? "online" : "offline"}
-                </span>
-              </>
-            ) : (
-              <span className="pill">
-                <span className="dot red" /> connecting…
+
+          <GlobalSearch />
+
+          {user && (
+            <div className="topbar-user" title={`${user.email}`}>
+              <span className="avatar">{initials(user.name)}</span>
+              <span className="user-text">
+                <b>{user.name}</b>
+                <em>{user.email}</em>
               </span>
-            )}
-          </div>
+            </div>
+          )}
         </header>
 
         <div
@@ -254,6 +243,15 @@ function App() {
       </main>
     </div>
   );
+}
+
+function initials(name: string): string {
+  return name
+    .trim()
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((p) => p[0]?.toUpperCase() ?? "")
+    .join("");
 }
 
 createRoot(document.getElementById("root")!).render(

@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useState } from "react";
 import { api, CallSession, Campaign } from "../api";
+import { Badge, Button, Card, EmptyState, LangPill, StatusBadge, timeAgo } from "../components";
+import { navigate } from "../router";
 
 export default function CallsView() {
   const [calls, setCalls] = useState<CallSession[]>([]);
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [campaignId, setCampaignId] = useState("");
-  const [openId, setOpenId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -17,7 +18,7 @@ export default function CallsView() {
 
   useEffect(() => {
     load();
-    const t = setInterval(load, 5000); // live-ish refresh while campaigns run
+    const t = setInterval(load, 5000);
     return () => clearInterval(t);
   }, [load]);
 
@@ -25,99 +26,100 @@ export default function CallsView() {
     api.listCampaigns().then(setCampaigns).catch(() => undefined);
   }, []);
 
-  const outcomeColor: Record<string, string> = {
-    interested: "#e6f7e6",
-    not_interested: "#fdeaea",
-    callback_requested: "#fff6e0",
-    dnd: "#f0e6f7",
-    failed: "#fdeaea",
-    connected: "#e8f4fd",
-  };
-
   return (
     <div>
-      <div style={{ display: "flex", gap: 10, marginBottom: 12, alignItems: "center" }}>
-        <h3 style={{ margin: 0 }}>Call sessions</h3>
-        <select
-          style={{ padding: 6, border: "1px solid #ccc", borderRadius: 6 }}
-          value={campaignId}
-          onChange={(e) => setCampaignId(e.target.value)}
-        >
-          <option value="">All campaigns</option>
-          {campaigns.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.name}
-            </option>
-          ))}
-        </select>
+      <div className="page-head">
+        <div>
+          <h2>Call Logs</h2>
+          <div className="sub">Every conversation session across campaigns</div>
+        </div>
+        <div className="page-head-actions">
+          <select className="select" style={{ width: 220 }} value={campaignId} onChange={(e) => setCampaignId(e.target.value)}>
+            <option value="">All campaigns</option>
+            {campaigns.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
+          </select>
+          <Button onClick={load}>🔄 Refresh</Button>
+        </div>
       </div>
 
-      {calls.length === 0 && <p style={{ color: "#777" }}>No calls yet.</p>}
-
-      {calls.map((c) => (
-        <div key={c.id} style={{ border: "1px solid #e2e2e2", borderRadius: 10, marginBottom: 10 }}>
-          <div
-            onClick={() => setOpenId(openId === c.id ? null : c.id)}
-            style={{ display: "flex", gap: 12, padding: "12px 14px", cursor: "pointer", alignItems: "center", flexWrap: "wrap" }}
-          >
-            <strong>{c.phone ?? "browser-call"}</strong>
-            <span style={{ fontSize: 12, color: "#666" }}>{c.agent_name}</span>
-            <span
-              style={{
-                fontSize: 12,
-                padding: "2px 8px",
-                borderRadius: 99,
-                background: outcomeColor[c.outcome ?? ""] ?? "#eee",
-              }}
-            >
-              {c.outcome ?? c.status}
-            </span>
-            {c.lead_score != null && (
-              <span style={{ fontSize: 12, color: "#555" }}>score: {c.lead_score}</span>
-            )}
-            {c.language && <span style={{ fontSize: 12, color: "#888" }}>{c.language}</span>}
-            {c.duration_seconds != null && (
-              <span style={{ fontSize: 12, color: "#888" }}>{c.duration_seconds}s</span>
-            )}
-            <span style={{ marginLeft: "auto", fontSize: 12, color: "#999" }}>
-              {c.created_at ? new Date(c.created_at).toLocaleString() : ""}
-            </span>
-          </div>
-
-          {openId === c.id && (
-            <div style={{ borderTop: "1px solid #eee", padding: 14, background: "#fafafa" }}>
-              {c.summary && (
-                <p style={{ margin: "0 0 10px", fontSize: 14 }}>
-                  <strong>Summary:</strong> {c.summary}
-                </p>
-              )}
-              {c.error && <p style={{ color: "#b00", fontSize: 13 }}>Error: {c.error}</p>}
-              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                {(c.transcript ?? []).map((t, i) => (
-                  <div
-                    key={i}
-                    style={{
-                      alignSelf: t.role === "agent" ? "flex-start" : "flex-end",
-                      background: t.role === "agent" ? "#eef4ff" : "#fff",
-                      border: "1px solid #e6e6e6",
-                      padding: "6px 10px",
-                      borderRadius: 10,
-                      maxWidth: "80%",
-                      fontSize: 13,
-                    }}
-                  >
-                    <span style={{ color: "#888", fontSize: 11 }}>
-                      {t.role} {t.language ? `· ${t.language}` : ""} —{" "}
+      {calls.length === 0 ? (
+        <Card>
+          <EmptyState
+            icon="📞"
+            title="No calls yet"
+            sub="Start a campaign or talk to an agent in the Voice Lab to see sessions here."
+          />
+        </Card>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          {calls.map((c) => {
+            const turnCount = (c.transcript ?? []).length;
+            const snippet = (c.transcript ?? [])[0]?.text;
+            return (
+              <Card key={c.id} onClick={() => navigate(`calls/${c.id}`)}>
+                <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                  <span style={{ fontFamily: "var(--mono)", fontSize: 13.5, fontWeight: 600 }}>
+                    {c.phone ?? "browser-call"}
+                  </span>
+                  <StatusBadge status={c.outcome ?? c.status} />
+                  {c.language && <LangPill code={c.language} />}
+                  {c.agent_name && (
+                    <Badge tone="gray">👤 {c.agent_name}</Badge>
+                  )}
+                  {c.lead_score != null && (
+                    <Badge tone={c.lead_score >= 60 ? "green" : c.lead_score >= 35 ? "amber" : "red"}>
+                      score {c.lead_score}
+                    </Badge>
+                  )}
+                  <span style={{ marginLeft: "auto", display: "flex", gap: 10, alignItems: "center" }}>
+                    {c.duration_seconds != null && (
+                      <span style={{ fontSize: 12, color: "var(--text-muted)" }}>
+                        ⏱ {Math.floor(c.duration_seconds / 60)}:{String(c.duration_seconds % 60).padStart(2, "0")}
+                      </span>
+                    )}
+                    <span style={{ fontSize: 12, color: "var(--text-faint)" }}>{timeAgo(c.created_at)}</span>
+                  </span>
+                </div>
+                <div
+                  style={{
+                    marginTop: 9,
+                    paddingTop: 9,
+                    borderTop: "1px dashed var(--border-soft)",
+                    display: "flex",
+                    gap: 10,
+                    alignItems: "center",
+                  }}
+                >
+                  <span style={{ fontSize: 12, color: "var(--text-muted)", whiteSpace: "nowrap" }}>
+                    {turnCount} turn{turnCount === 1 ? "" : "s"}
+                  </span>
+                  {snippet && (
+                    <span
+                      style={{
+                        fontSize: 12.5,
+                        color: "var(--text-muted)",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                        maxWidth: "60%",
+                      }}
+                    >
+                      “{snippet}”
                     </span>
-                    {t.text}
-                  </div>
-                ))}
-                {(c.transcript ?? []).length === 0 && <span style={{ color: "#999", fontSize: 13 }}>No transcript captured.</span>}
-              </div>
-            </div>
-          )}
+                  )}
+                  {c.summary && (
+                    <span style={{ marginLeft: "auto", fontSize: 12, color: "var(--text-faint)" }}>📄 summary →</span>
+                  )}
+                </div>
+              </Card>
+            );
+          })}
         </div>
-      ))}
+      )}
     </div>
   );
 }

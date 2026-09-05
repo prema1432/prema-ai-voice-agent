@@ -81,6 +81,7 @@ export const api = {
 
   // campaigns
   listCampaigns: () => req<Campaign[]>("/campaigns"),
+  getCampaign: (id: string) => req<Campaign>(`/campaigns/${id}`),
   createCampaign: (body: unknown) =>
     req<{ id: string }>("/campaigns", { method: "POST", body: JSON.stringify(body) }),
   startCampaign: (id: string) =>

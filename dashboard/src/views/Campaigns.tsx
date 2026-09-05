@@ -1,5 +1,18 @@
 import { useCallback, useEffect, useState } from "react";
 import { api, Campaign, LANGUAGES } from "../api";
+import { Badge, Button, Card, EmptyState, LangPill, Progress, StatusBadge } from "../components";
+import { navigate } from "../router";
+
+type LeadRow = { name: string; phone: string; language: string; notes: string };
+const newRow = (language: string): LeadRow => ({ name: "", phone: "", language, notes: "" });
+
+type CampaignStats = {
+  total?: number;
+  by_status?: Record<string, number>;
+  by_outcome?: Record<string, number>;
+  calls?: Record<string, number>;
+  dialer_running?: boolean;
+};
 
 const emptyAgent = {
   name: "Priya",
@@ -12,35 +25,35 @@ const emptyAgent = {
   max_call_seconds: 300,
 };
 
-type LeadRow = { name: string; phone: string; language: string; notes: string };
-
-const newRow = (language: string): LeadRow => ({ name: "", phone: "", language, notes: "" });
-
 export default function Campaigns() {
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
-  const [name, setName] = useState("Diwali Offer — Oct batch");
+  const [name, setName] = useState("");
   const [agent, setAgent] = useState(emptyAgent);
   const [lang, setLang] = useState("hi");
   const [busy, setBusy] = useState(false);
-  const [msg, setMsg] = useState<string | null>(null);
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [leadFormFor, setLeadFormFor] = useState<string | null>(null);
   const [rows, setRows] = useState<LeadRow[]>([]);
 
   const load = useCallback(async () => {
     try {
       setCampaigns(await api.listCampaigns());
-    } catch (e) {
-      setMsg(String(e));
+    } catch {
+      setMsg({ ok: false, text: "Could not reach backend." });
     }
   }, []);
 
   useEffect(() => {
     load();
-    const t = setInterval(load, 4000); // live status refresh
+    const t = setInterval(load, 4000);
     return () => clearInterval(t);
   }, [load]);
 
   async function create() {
+    if (!name.trim()) {
+      setMsg({ ok: false, text: "Give the campaign a name." });
+      return;
+    }
     setBusy(true);
     setMsg(null);
     try {
@@ -50,27 +63,12 @@ export default function Campaigns() {
         dial_provider: "mock",
         agent: { ...agent, primary_language: lang },
       });
-      setMsg(`Campaign created (${res.id}). Upload leads below.`);
+      setMsg({ ok: true, text: `Campaign created ✓ — now add leads.` });
+      setName("");
       await load();
+      navigate(`campaigns/${res.id}`);
     } catch (e) {
-      setMsg(String(e));
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function uploadCsv(c: Campaign, file: File) {
-    setBusy(true);
-    setMsg(null);
-    try {
-      const res = await api.uploadCsv(c.id, file);
-      setMsg(
-        `${c.name}: +${res.added} leads (${res.updated} updated, ` +
-          `${res.dnd_skipped} DND skipped, ${res.invalid.length} invalid)`,
-      );
-      await load();
-    } catch (e) {
-      setMsg(String(e));
+      setMsg({ ok: false, text: String(e).slice(0, 300) });
     } finally {
       setBusy(false);
     }
@@ -82,9 +80,10 @@ export default function Campaigns() {
       if (action === "start") await api.startCampaign(c.id);
       if (action === "pause") await api.pauseCampaign(c.id);
       if (action === "delete") await api.deleteCampaign(c.id);
+      if (action === "delete") navigate("campaigns");
       await load();
     } catch (e) {
-      setMsg(String(e));
+      setMsg({ ok: false, text: String(e).slice(0, 300) });
     } finally {
       setBusy(false);
     }
@@ -115,268 +114,245 @@ export default function Campaigns() {
           extra: { ...(r.notes.trim() ? { notes: r.notes.trim() } : {}) },
         })),
       );
-      setMsg(
-        `Added ${res.added} lead(s) (${res.updated} updated, ` +
-          `${res.dnd_skipped} DND skipped, ${res.invalid.length} invalid phone number(s)` +
-          (res.invalid.length ? `: ${res.invalid.join(", ")}` : ")"),
-      );
+      setMsg({
+        ok: true,
+        text:
+          `Added ${res.added} lead(s) ✓${res.dnd_skipped ? ` (${res.dnd_skipped} DND skipped)` : ""}` +
+          (res.invalid.length ? ` · ${res.invalid.length} invalid: ${res.invalid.join(", ")}` : ""),
+      });
       setLeadFormFor(null);
       await load();
     } catch (e) {
-      setMsg(String(e));
+      setMsg({ ok: false, text: String(e).slice(0, 300) });
     } finally {
       setBusy(false);
     }
   }
 
-  const btn = {
-    padding: "4px 10px",
-    border: "1px solid #ccc",
-    background: "#fff",
-    borderRadius: 6,
-    cursor: "pointer",
-    fontSize: 13,
-  };
-
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "340px 1fr", gap: 24 }}>
-      <section>
-        <h3 style={{ marginBottom: 8 }}>New campaign</h3>
-        <label style={styles.lbl}>Name</label>
-        <input style={styles.inp} value={name} onChange={(e) => setName(e.target.value)} />
+    <div>
+      <div className="page-head">
+        <div>
+          <h2>Campaigns & Leads</h2>
+          <div className="sub">Create outbound campaigns, upload leads, and launch dialers</div>
+        </div>
+      </div>
 
-        <label style={styles.lbl}>Agent name</label>
-        <input
-          style={styles.inp}
-          value={agent.name}
-          onChange={(e) => setAgent({ ...agent, name: e.target.value })}
-        />
+      {msg && <div className={`msg ${msg.ok ? "ok" : "err"}`}>{msg.text}</div>}
 
-        <label style={styles.lbl}>Primary language</label>
-        <select style={styles.inp} value={lang} onChange={(e) => setLang(e.target.value)}>
-          {Object.entries(LANGUAGES).map(([code, label]) => (
-            <option key={code} value={code}>
-              {label}
-            </option>
-          ))}
-        </select>
+      <div className="grid-2" style={{ alignItems: "start" }}>
+        {/* ── Create form ── */}
+        <Card title="New campaign">
+          <label className="lbl">Campaign name</label>
+          <input
+            className="input"
+            placeholder="e.g. Diwali Offer — Oct batch"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+          />
+          <label className="lbl">Agent name</label>
+          <input
+            className="input"
+            placeholder="e.g. Priya"
+            value={agent.name}
+            onChange={(e) => setAgent({ ...agent, name: e.target.value })}
+          />
+          <label className="lbl">Primary language</label>
+          <select className="select" value={lang} onChange={(e) => setLang(e.target.value)}>
+            {Object.entries(LANGUAGES).map(([code, label]) => (
+              <option key={code} value={code}>
+                {label}
+              </option>
+            ))}
+          </select>
+          <label className="lbl">Agent requirements</label>
+          <textarea
+            className="input"
+            style={{ height: 120, resize: "vertical" }}
+            value={agent.requirements}
+            onChange={(e) => setAgent({ ...agent, requirements: e.target.value })}
+          />
+          <Button
+            variant="primary"
+            block
+            onClick={create}
+            disabled={busy}
+            style={{ marginTop: 16 }}
+          >
+            {busy ? <span className="spinner" /> : "🚀 Create campaign"}
+          </Button>
+        </Card>
 
-        <label style={styles.lbl}>Requirements (natural language)</label>
-        <textarea
-          style={{ ...styles.inp, height: 110 }}
-          value={agent.requirements}
-          onChange={(e) => setAgent({ ...agent, requirements: e.target.value })}
-        />
+        {/* ── Campaign list ── */}
+        <section>
+          {campaigns.length === 0 ? (
+            <Card>
+              <EmptyState
+                icon="🗂️"
+                title="No campaigns yet"
+                sub="Create your first campaign on the left — then add leads and press Start."
+              />
+            </Card>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              {campaigns.map((c) => {
+                const stats = (c.stats ?? {}) as CampaignStats;
+                const by = stats.by_status ?? {};
+                const total = stats.total ?? 0;
+                const done =
+                  (by.completed ?? 0) + (by.failed ?? 0) + (by.dnd ?? 0) + (by.skipped ?? 0);
+                const pct = total > 0 ? (done / total) * 100 : 0;
+                const runningDialer = stats.dialer_running === true;
 
-        <button style={{ ...btn, width: "100%", padding: 9, marginTop: 12 }} disabled={busy} onClick={create}>
-          Create campaign
-        </button>
-      </section>
-
-      <section>
-        <h3 style={{ marginBottom: 8 }}>Campaigns</h3>
-        {msg && <p style={{ background: "#f4f9f4", padding: 8, borderRadius: 6, fontSize: 13 }}>{msg}</p>}
-        {campaigns.length === 0 && <p style={{ color: "#777" }}>No campaigns yet — create one on the left.</p>}
-        {campaigns.map((c) => {
-          const stats = (c.stats ?? {}) as unknown as {
-            total?: number;
-            by_status?: Record<string, number>;
-            by_outcome?: Record<string, number>;
-            calls?: Record<string, number>;
-            dialer_running?: boolean;
-          };
-          const by = stats.by_status ?? {};
-          const total = stats.total ?? 0;
-          const done = (by.completed ?? 0) + (by.failed ?? 0) + (by.dnd ?? 0) + (by.skipped ?? 0);
-          const runningDialer = stats.dialer_running === true;
-          return (
-            <div key={c.id} style={{ border: "1px solid #e2e2e2", borderRadius: 10, padding: 14, marginBottom: 12 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-                <strong>{c.name}</strong>
-                <span
-                  style={{
-                    fontSize: 12,
-                    padding: "2px 8px",
-                    borderRadius: 99,
-                    background: c.status === "running" ? "#e6f7e6" : c.status === "paused" ? "#fff6e0" : "#eee",
-                  }}
-                >
-                  {c.status}
-                </span>
-                {c.status === "running" && (
-                  <span
-                    style={{
-                      fontSize: 12,
-                      color: runningDialer ? "#0a7" : "#b00",
-                      fontWeight: 600,
-                    }}
-                    title={
-                      runningDialer
-                        ? "Dialer is actively processing this campaign"
-                        : "Dialer not attached — click Start to (re)launch it"
-                    }
-                  >
-                    ● dialer {runningDialer ? "live" : "stopped"}
-                  </span>
-                )}
-                <span style={{ fontSize: 12, color: "#666" }}>{LANGUAGES[c.languages[0]] ?? c.languages[0]}</span>
-                <span style={{ marginLeft: "auto", display: "flex", gap: 6 }}>
-                  {c.status !== "running" ? (
-                    <button style={btn} disabled={busy} onClick={() => act(c, "start")}>
-                      ▶ Start
-                    </button>
-                  ) : (
-                    <button style={btn} disabled={busy} onClick={() => act(c, "pause")}>
-                      ⏸ Pause
-                    </button>
-                  )}
-                  <a style={btn} href={api.exportCsv(c.id)} download>
-                    ⬇ Export CSV
-                  </a>
-                  <button style={btn} disabled={busy} onClick={() => act(c, "delete")}>
-                    🗑
-                  </button>
-                </span>
-              </div>
-              <div style={{ fontSize: 13, color: "#555", marginTop: 8 }}>
-                Agent: {c.agent?.name ?? "—"} · Leads: {total}
-                {Object.entries(by).map(([k, v]) => ` · ${k}: ${v}`)}
-                {stats.calls && Object.entries(stats.calls).length
-                  ? Object.entries(stats.calls).map(([k, v]) => ` · calls ${k}: ${v}`)
-                  : ""}
-              </div>
-              {total > 0 && (
-                <div style={{ marginTop: 8, background: "#eee", borderRadius: 99, height: 8, overflow: "hidden" }}>
-                  <div
-                    style={{
-                      width: `${Math.min(100, Math.round((done / total) * 100))}%`,
-                      background: "#0a7",
-                      height: "100%",
-                      transition: "width 0.5s",
-                    }}
-                  />
-                </div>
-              )}
-              <div style={{ marginTop: 10 }}>
-                <input
-                  type="file"
-                  accept=".csv"
-                  onChange={(e) => e.target.files?.[0] && uploadCsv(c, e.target.files[0])}
-                />
-                <span style={{ fontSize: 12, color: "#888" }}> — bulk CSV with a `phone` column (name, language optional)</span>
-              </div>
-              <div style={{ marginTop: 8 }}>
-                <button style={btn} disabled={busy} onClick={() => openLeadForm(c)}>
-                  {leadFormFor === c.id ? "✕ Close form" : "➕ Add leads by form"}
-                </button>
-                <span style={{ fontSize: 12, color: "#888", marginLeft: 8 }}>
-                  for a few leads — name, phone, language + special instructions for the agent
-                </span>
-              </div>
-              {leadFormFor === c.id && (
-                <div style={{ marginTop: 10, borderTop: "1px dashed #ddd", paddingTop: 10 }}>
-                  <div
-                    style={{
-                      display: "grid",
-                      gridTemplateColumns: "1fr 1.2fr 0.9fr 2.2fr auto",
-                      gap: 6,
-                      marginBottom: 4,
-                      fontSize: 11,
-                      color: "#777",
-                    }}
-                  >
-                    <span>Name</span>
-                    <span>Phone (91XXXXXXXXXX)</span>
-                    <span>Language</span>
-                    <span>Notes / guidelines for the agent (optional)</span>
-                    <span />
-                  </div>
-                  {rows.map((r, i) => (
+                return (
+                  <Card key={c.id}>
                     <div
-                      key={i}
+                      style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", cursor: "pointer" }}
+                      onClick={() => navigate(`campaigns/${c.id}`)}
+                    >
+                      <StatusBadge status={c.status} />
+                      <span style={{ fontWeight: 700, fontSize: 15 }}>{c.name}</span>
+                      <LangPill code={c.languages?.[0]} />
+                      {c.status === "running" && (
+                        <Badge tone={runningDialer ? "green" : "red"}>
+                          ● dialer {runningDialer ? "live" : "stopped"}
+                        </Badge>
+                      )}
+                      <span style={{ marginLeft: "auto", display: "flex", gap: 6 }}>
+                        {c.status !== "running" ? (
+                          <Button size="sm" variant="primary" disabled={busy} onClick={() => act(c, "start")}>
+                            ▶ Start
+                          </Button>
+                        ) : (
+                          <Button size="sm" disabled={busy} onClick={() => act(c, "pause")}>
+                            ⏸ Pause
+                          </Button>
+                        )}
+                        <a className="btn sm" href={api.exportCsv(c.id)} download>
+                          ⬇ CSV
+                        </a>
+                        <Button size="sm" variant="danger" disabled={busy} onClick={() => act(c, "delete")}>
+                          🗑
+                        </Button>
+                      </span>
+                    </div>
+
+                    <div style={{ display: "flex", gap: 16, marginTop: 12, flexWrap: "wrap" }}>
+                      <div style={{ flex: "1 1 200px", minWidth: 180 }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginBottom: 5 }}>
+                          <span style={{ color: "var(--text-muted)" }}>Progress</span>
+                          <span style={{ color: "var(--text)" }}>
+                            {done}/{total} done
+                          </span>
+                        </div>
+                        <Progress value={pct} />
+                        <div style={{ display: "flex", gap: 8, marginTop: 7, flexWrap: "wrap" }}>
+                          {Object.entries(by).map(([k, v]) => (
+                            <span key={k} style={{ fontSize: 11.5, color: "var(--text-muted)" }}>
+                              {k}: <b style={{ color: "var(--text)" }}>{v}</b>
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                      <div style={{ fontSize: 12.5, color: "var(--text-muted)", lineHeight: 1.8 }}>
+                        <div>
+                          👤 Agent: <b style={{ color: "var(--text)" }}>{c.agent?.name ?? "—"}</b>
+                        </div>
+                        <div>
+                          📞 Calls:{" "}
+                          {stats.calls && Object.keys(stats.calls).length
+                            ? Object.entries(stats.calls)
+                                .map(([k, v]) => `${k}: ${v}`)
+                                .join(" · ")
+                            : "none yet"}
+                        </div>
+                        <div>
+                          🕐 Created: {c.created_at ? new Date(c.created_at).toLocaleDateString() : "—"}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div
                       style={{
-                        display: "grid",
-                        gridTemplateColumns: "1fr 1.2fr 0.9fr 2.2fr auto",
-                        gap: 6,
-                        marginBottom: 6,
+                        marginTop: 14,
+                        paddingTop: 12,
+                        borderTop: "1px dashed var(--border-soft)",
+                        display: "flex",
+                        gap: 8,
+                        alignItems: "center",
+                        flexWrap: "wrap",
                       }}
                     >
-                      <input
-                        style={styles.inpSm}
-                        placeholder="e.g. Amit Sharma"
-                        value={r.name}
-                        onChange={(e) => updateRow(i, { name: e.target.value })}
-                      />
-                      <input
-                        style={styles.inpSm}
-                        placeholder="98765 43210"
-                        value={r.phone}
-                        onChange={(e) => updateRow(i, { phone: e.target.value })}
-                      />
-                      <select
-                        style={styles.inpSm}
-                        value={r.language}
-                        onChange={(e) => updateRow(i, { language: e.target.value })}
-                      >
-                        {Object.entries(LANGUAGES).map(([code, label]) => (
-                          <option key={code} value={code}>
-                            {label}
-                          </option>
-                        ))}
-                      </select>
-                      <input
-                        style={styles.inpSm}
-                        placeholder="e.g. already visited once, offer 10% discount, avoid calling after 8pm"
-                        value={r.notes}
-                        onChange={(e) => updateRow(i, { notes: e.target.value })}
-                      />
-                      <button
-                        style={btn}
-                        disabled={rows.length === 1}
-                        onClick={() => setRows((rs) => rs.filter((_, j) => j !== i))}
-                      >
-                        ✕
-                      </button>
+                      <Button size="sm" onClick={() => openLeadForm(c)}>
+                        {leadFormFor === c.id ? "✕ Close form" : "➕ Add leads"}
+                      </Button>
+                      <Button size="sm" onClick={() => navigate(`campaigns/${c.id}`)}>
+                        📂 Open details (CSV upload)
+                      </Button>
                     </div>
-                  ))}
-                  <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
-                    <button style={btn} onClick={() => setRows((rs) => [...rs, newRow(c.languages[0] ?? "hi")])}>
-                      ➕ Another lead
-                    </button>
-                    <button
-                      style={{ ...btn, background: "#0a7", color: "#fff", border: "none" }}
-                      disabled={busy || rows.every((r) => !r.phone.trim())}
-                      onClick={saveLeads}
-                    >
-                      💾 Save leads
-                    </button>
-                  </div>
-                </div>
-              )}
+
+                    {leadFormFor === c.id && (
+                      <div style={{ marginTop: 12, borderTop: "1px dashed var(--border-soft)", paddingTop: 12 }}>
+                        <div
+                          style={{
+                            display: "grid",
+                            gridTemplateColumns: "1fr 1.1fr 0.8fr 2fr auto",
+                            gap: 6,
+                            marginBottom: 6,
+                            fontSize: 11,
+                            color: "var(--text-muted)",
+                            textTransform: "uppercase",
+                            letterSpacing: "0.05em",
+                          }}
+                        >
+                          <span>Name</span>
+                          <span>Phone</span>
+                          <span>Language</span>
+                          <span>Guidelines for agent</span>
+                          <span />
+                        </div>
+                        {rows.map((r, i) => (
+                          <div
+                            key={i}
+                            style={{ display: "grid", gridTemplateColumns: "1fr 1.1fr 0.8fr 2fr auto", gap: 6, marginBottom: 6 }}
+                          >
+                            <input className="input" style={{ padding: 7 }} placeholder="Amit Sharma" value={r.name} onChange={(e) => updateRow(i, { name: e.target.value })} />
+                            <input className="input" style={{ padding: 7 }} placeholder="98765 43210" value={r.phone} onChange={(e) => updateRow(i, { phone: e.target.value })} />
+                            <select className="select" style={{ padding: 7 }} value={r.language} onChange={(e) => updateRow(i, { language: e.target.value })}>
+                              {Object.entries(LANGUAGES).map(([code, label]) => (
+                                <option key={code} value={code}>
+                                  {label}
+                                </option>
+                              ))}
+                            </select>
+                            <input className="input" style={{ padding: 7 }} placeholder="already visited once, offer 10% off…" value={r.notes} onChange={(e) => updateRow(i, { notes: e.target.value })} />
+                            <Button size="sm" variant="ghost" disabled={rows.length === 1} onClick={() => setRows((rs) => rs.filter((_, j) => j !== i))}>
+                              ✕
+                            </Button>
+                          </div>
+                        ))}
+                        <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+                          <Button size="sm" onClick={() => setRows((rs) => [...rs, newRow(c.languages[0] ?? "hi")])}>
+                            ➕ Another lead
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="primary"
+                            disabled={busy || rows.every((r) => !r.phone.trim())}
+                            onClick={saveLeads}
+                          >
+                            💾 Save leads
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </Card>
+                );
+              })}
             </div>
-          );
-        })}
-      </section>
+          )}
+        </section>
+      </div>
     </div>
   );
 }
-
-const styles: Record<string, React.CSSProperties> = {
-  lbl: { display: "block", fontSize: 12, color: "#555", margin: "10px 0 4px" },
-  inp: {
-    width: "100%",
-    padding: 8,
-    border: "1px solid #ccc",
-    borderRadius: 6,
-    fontSize: 14,
-    boxSizing: "border-box",
-  },
-  inpSm: {
-    width: "100%",
-    padding: 6,
-    border: "1px solid #ccc",
-    borderRadius: 6,
-    fontSize: 13,
-    boxSizing: "border-box",
-  },
-};

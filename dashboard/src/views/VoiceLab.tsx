@@ -1,5 +1,6 @@
 import { useRef, useState } from "react";
 import { AgentPersona, LANGUAGES, api } from "../api";
+import { Button, Card, StatusBadge } from "../components";
 
 type Turn = { role: string; text: string; language?: string };
 
@@ -13,7 +14,7 @@ type Turn = { role: string; text: string; language?: string };
 export default function VoiceLab() {
   const [status, setStatus] = useState<"idle" | "connecting" | "live" | "ended">("idle");
   const [turns, setTurns] = useState<Turn[]>([]);
-  const [lang, setLang] = useState("hinglish");
+  const [lang, setLang] = useState("te");
   const [name, setName] = useState("Priya");
   const [requirements, setRequirements] = useState(
     "You are a friendly insurance renewal agent. Greet, check if they renew their policy, offer a 10% early-renewal discount, and try to close.",
@@ -96,15 +97,16 @@ export default function VoiceLab() {
         return; // ignore non-JSON frames (e.g. bare binary passed as string)
       }
       if (msg.type === "transcript") {
-        setTurns((t) => [...t, { role: msg.role as string, text: msg.text as string, language: (msg.language as string) ?? undefined }]);
+        setTurns((t) => [
+          ...t,
+          { role: msg.role as string, text: msg.text as string, language: (msg.language as string) ?? undefined },
+        ]);
       } else if (msg.type === "interrupted") {
         // playback already stopped server-side; nothing to do client-side
       } else if (msg.type === "ended") {
+        const sm = (msg.summary ?? {}) as { end_reason?: string; error?: string };
         setStatus("ended");
-        setEndInfo(
-          (msg.summary?.end_reason ?? "ended") +
-            (msg.summary?.error ? ` — ${msg.summary.error}` : ""),
-        );
+        setEndInfo((sm.end_reason ?? "ended") + (sm.error ? ` — ${sm.error}` : ""));
         cleanupMedia();
       }
     };
@@ -191,123 +193,118 @@ export default function VoiceLab() {
     procRef.current = null;
   }
 
+  const live = status === "live";
+
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "340px 1fr", gap: 24 }}>
-      <section>
-        <h3 style={{ marginBottom: 8 }}>Agent setup</h3>
-        <label style={lbl}>Agent name</label>
-        <input style={inp} value={name} onChange={(e) => setName(e.target.value)} />
-
-        <label style={lbl}>Language</label>
-        <select style={inp} value={lang} onChange={(e) => setLang(e.target.value)}>
-          {Object.entries(LANGUAGES).map(([code, label]) => (
-            <option key={code} value={code}>
-              {label}
-            </option>
-          ))}
-        </select>
-
-        <label style={lbl}>Requirements</label>
-        <textarea
-          style={{ ...inp, height: 110 }}
-          value={requirements}
-          onChange={(e) => setRequirements(e.target.value)}
-        />
-
-        <label style={lbl}>Who are you calling? (optional)</label>
-        <input
-          style={inp}
-          placeholder="Lead name"
-          value={leadName}
-          onChange={(e) => setLeadName(e.target.value)}
-        />
-        <input
-          style={{ ...inp, marginTop: 6 }}
-          placeholder="Special instructions for the agent about this person"
-          value={leadNotes}
-          onChange={(e) => setLeadNotes(e.target.value)}
-        />
-
-        <p style={{ fontSize: 12, color: "#888", lineHeight: 1.5 }}>
-          Uses your configured STT/TTS backends (<code>.env</code>). With mock engines
-          you'll see the transcript loop but hear silence. 🎧 Use headphones to avoid echo
-          triggering barge-in.
-        </p>
-
-        {status !== "live" ? (
-          <button style={primaryBtn} onClick={start} disabled={status === "connecting"}>
-            🎙 {status === "connecting" ? "Connecting…" : "Start talking"}
-          </button>
-        ) : (
-          <button style={{ ...primaryBtn, background: "#a11" }} onClick={stop}>
-            ⏹ Hang up
-          </button>
-        )}
-        {error && (
-          <p style={{ background: "#fdeaea", color: "#901", padding: 8, borderRadius: 6, fontSize: 13 }}>
-            {error}
-          </p>
-        )}
-        {status === "ended" && endInfo && <p style={{ fontSize: 13 }}>Call ended: {endInfo}</p>}
-      </section>
-
-      <section>
-        <h3 style={{ marginBottom: 8 }}>Live transcript {status === "live" && "●"}</h3>
-        <div
-          style={{
-            border: "1px solid #e2e2e2",
-            borderRadius: 10,
-            padding: 14,
-            minHeight: 300,
-            maxHeight: 480,
-            overflowY: "auto",
-            display: "flex",
-            flexDirection: "column",
-            gap: 8,
-          }}
-        >
-          {turns.length === 0 && <span style={{ color: "#999" }}>Transcript will appear here…</span>}
-          {turns.map((t, i) => (
-            <div
-              key={i}
-              style={{
-                alignSelf: t.role === "agent" ? "flex-start" : "flex-end",
-                background: t.role === "agent" ? "#eef4ff" : "#eefaf0",
-                padding: "7px 11px",
-                borderRadius: 12,
-                maxWidth: "75%",
-                fontSize: 14,
-              }}
-            >
-              <div style={{ fontSize: 11, color: "#888", marginBottom: 2 }}>
-                {t.role === "agent" ? name : "You"} {t.language ? `· ${t.language}` : ""}
-              </div>
-              {t.text}
-            </div>
-          ))}
+    <div>
+      <div className="page-head">
+        <div>
+          <h2>🎤 Voice Lab</h2>
+          <div className="sub">Talk to an agent live in your browser — same pipeline as phone calls</div>
         </div>
-      </section>
+        <StatusBadge
+          status={
+            status === "live" ? "running" : status === "connecting" ? "dialing" : status === "ended" ? "completed" : "new"
+          }
+        />
+      </div>
+
+      <div className="grid-2" style={{ alignItems: "start" }}>
+        <div>
+          <Card title="Agent setup">
+            <label className="lbl">Agent name</label>
+            <input className="input" value={name} onChange={(e) => setName(e.target.value)} />
+
+            <label className="lbl">Language</label>
+            <select className="select" value={lang} onChange={(e) => setLang(e.target.value)}>
+              {Object.entries(LANGUAGES).map(([code, label]) => (
+                <option key={code} value={code}>
+                  {label}
+                </option>
+              ))}
+            </select>
+
+            <label className="lbl">Requirements</label>
+            <textarea
+              className="input"
+              style={{ height: 110, resize: "vertical" }}
+              value={requirements}
+              onChange={(e) => setRequirements(e.target.value)}
+            />
+
+            <label className="lbl">Who are you calling? (optional)</label>
+            <input
+              className="input"
+              placeholder="Lead name"
+              value={leadName}
+              onChange={(e) => setLeadName(e.target.value)}
+            />
+            <input
+              className="input"
+              style={{ marginTop: 7 }}
+              placeholder="Special instructions for the agent about this person"
+              value={leadNotes}
+              onChange={(e) => setLeadNotes(e.target.value)}
+            />
+
+            <p style={{ fontSize: 12, color: "var(--text-muted)", lineHeight: 1.6, marginTop: 14 }}>
+              Uses your configured STT/TTS backends (<code>.env</code>). With mock engines
+              you'll see the transcript loop but hear silence. 🎧 Use headphones to avoid echo
+              triggering barge-in.
+            </p>
+
+            {!live ? (
+              <Button variant="primary" block onClick={start} disabled={status === "connecting"} style={{ marginTop: 12 }}>
+                {status === "connecting" ? (
+                  <>
+                    <span className="spinner" /> Connecting…
+                  </>
+                ) : (
+                  "🎙 Start talking"
+                )}
+              </Button>
+            ) : (
+              <Button block variant="danger" onClick={stop} style={{ marginTop: 12 }}>
+                ⏹ Hang up
+              </Button>
+            )}
+            {error && (
+              <div className="msg err" style={{ marginTop: 12 }}>
+                {error}
+              </div>
+            )}
+            {status === "ended" && endInfo && (
+              <div className="msg ok" style={{ marginTop: 12 }}>
+                Call ended: {endInfo}
+              </div>
+            )}
+          </Card>
+        </div>
+
+        <Card title={<span>Live transcript {live && <span className="dot green" style={{ marginLeft: 6 }} />}</span>}>
+          {turns.length === 0 ? (
+            <div style={{ textAlign: "center", padding: "60px 20px", color: "var(--text-muted)" }}>
+              <div style={{ fontSize: 36, marginBottom: 10 }}>💬</div>
+              <div style={{ fontWeight: 600, color: "var(--text)" }}>Transcript will appear here…</div>
+              <div style={{ fontSize: 12.5, marginTop: 4 }}>Press start, allow the mic, and say hello.</div>
+            </div>
+          ) : (
+            <div
+              className="transcript"
+              style={{ minHeight: 300, maxHeight: 520, overflowY: "auto", paddingRight: 4 }}
+            >
+              {turns.map((t, i) => (
+                <div key={i} className={`bubble ${t.role === "agent" ? "agent" : "user"}`}>
+                  <div className="meta">
+                    {t.role === "agent" ? name : "You"} {t.language ? ` · ${LANGUAGES[t.language] ?? t.language}` : ""}
+                  </div>
+                  {t.text}
+                </div>
+              ))}
+            </div>
+          )}
+        </Card>
+      </div>
     </div>
   );
 }
-
-const lbl: React.CSSProperties = { display: "block", fontSize: 12, color: "#555", margin: "10px 0 4px" };
-const inp: React.CSSProperties = {
-  width: "100%",
-  padding: 8,
-  border: "1px solid #ccc",
-  borderRadius: 6,
-  fontSize: 14,
-  boxSizing: "border-box",
-};
-const primaryBtn: React.CSSProperties = {
-  width: "100%",
-  padding: 10,
-  border: "none",
-  borderRadius: 8,
-  background: "#0a7",
-  color: "#fff",
-  fontSize: 15,
-  cursor: "pointer",
-  marginTop: 14,
-};

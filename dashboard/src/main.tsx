@@ -3,7 +3,8 @@ import { createRoot } from "react-dom/client";
 import { api } from "./api";
 import { NotificationBell } from "./components/NotificationBell";
 import ModelPicker from "./components/ModelPicker";
-import { parseRoute } from "./router";
+import { navigate, parseRoute } from "./router";
+import { applyRouteSeo } from "./seo";
 import { getTheme, initTheme, toggleTheme, Theme } from "./theme";
 import Dashboard from "./views/Dashboard";
 import Campaigns from "./views/Campaigns";
@@ -29,13 +30,13 @@ import "./platform.css";
 initTheme();
 
 function useRoute(): ReturnType<typeof parseRoute> {
-  const [hash, setHash] = useState(location.hash);
+  const [path, setPath] = useState(location.pathname);
   useEffect(() => {
-    const on = () => setHash(location.hash);
-    window.addEventListener("hashchange", on);
-    return () => window.removeEventListener("hashchange", on);
+    const on = () => setPath(location.pathname);
+    window.addEventListener("popstate", on);
+    return () => window.removeEventListener("popstate", on);
   }, []);
-  return parseRoute(hash);
+  return parseRoute(path);
 }
 
 const NAV = [
@@ -92,6 +93,20 @@ function App() {
     return () => clearInterval(t);
   }, []);
 
+  // Per-route SEO: title, description, OG tags (views enrich with live data).
+  // Keyed on a stable route string so periodic re-renders (health pings) don't
+  // clobber the richer title a view sets after its data loads.
+  const routeKey =
+    route.name +
+    ("id" in route ? `:${route.id}` : "") +
+    ("campaignId" in route ? `:${route.campaignId ?? ""}` : "") +
+    ("agentId" in route ? `:${route.agentId ?? ""}` : "") +
+    ("slug" in route ? `:${route.slug}` : "");
+  useEffect(() => {
+    applyRouteSeo(route);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [routeKey]);
+
   const llmKeySet = health?.llm_key_set === true;
   const backendUp = !err && health != null;
   const changeTheme = () => setTheme(toggleTheme());
@@ -116,9 +131,7 @@ function App() {
           <button
             key={n.key}
             className={`nav-item ${isActive(route.name, n.key) ? "active" : ""}`}
-            onClick={() => {
-              location.hash = `#/${n.path}`;
-            }}
+            onClick={() => navigate(n.path)}
           >
             <span className="ic">{n.icon}</span>
             {n.label}
@@ -152,18 +165,18 @@ function App() {
 
       <main className="main">
         <header className="topbar">
-          <div className="topbar-brand" onClick={() => (location.hash = "#/")}>
+          <div className="topbar-brand" onClick={() => navigate("")}>
             <span className="mark">🎙️</span>
             <span>
               <b>Prema AI</b> <em>Voice Agent</em>
             </span>
           </div>
           <nav className="topbar-links">
-            <button onClick={() => (location.hash = "#/notifications")}>🔔 Notifications</button>
-            <button onClick={() => (location.hash = "#/audit")}>🧾 Audit Logs</button>
-            <button onClick={() => (location.hash = "#/integrations")}>🔌 Integrations</button>
-            <button onClick={() => (location.hash = "#/llm")}>🧠 LLM & Cost</button>
-            <button onClick={() => (location.hash = "#/crm")}>🗂 CRM Pipeline</button>
+            <button onClick={() => navigate("notifications")}>🔔 Notifications</button>
+            <button onClick={() => navigate("audit")}>🧾 Audit Logs</button>
+            <button onClick={() => navigate("integrations")}>🔌 Integrations</button>
+            <button onClick={() => navigate("llm")}>🧠 LLM & Cost</button>
+            <button onClick={() => navigate("crm")}>🗂 CRM Pipeline</button>
           </nav>
           <div className="topbar-status">
             {health ? (
@@ -215,7 +228,7 @@ function App() {
           </div>
           <nav className="footer-links">
             {FOOT_LINKS.map((l) => (
-              <button key={l.path} onClick={() => (location.hash = `#/${l.path}`)}>
+              <button key={l.path} onClick={() => navigate(l.path)}>
                 {l.label}
               </button>
             ))}

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { LlmStatus, LlmUsage, api } from "../api";
 import { Badge, Bars, Button, Card, EmptyState, StatCard } from "../components";
+import { navigate } from "../router";
 
 const fmtTok = (n: number) =>
   n >= 1_000_000 ? `${(n / 1_000_000).toFixed(2)}M` : n >= 1000 ? `${(n / 1000).toFixed(1)}k` : String(n);
@@ -44,7 +45,7 @@ export default function LlmPage() {
           <div className="sub">Live model, thinking effort, token usage and cost monitoring</div>
         </div>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          <Button size="sm" variant="ghost" onClick={() => (location.hash = "#/llm/models")}>
+          <Button size="sm" variant="ghost" onClick={() => navigate("llm/models")}>
             📚 Browse models
           </Button>
           {[1, 7, 30].map((d) => (

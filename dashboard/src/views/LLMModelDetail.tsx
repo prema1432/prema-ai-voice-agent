@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { LlmModel, LlmUsage, api } from "../api";
 import { Badge, Button, Card, EmptyState, StatCard } from "../components";
+import { navigate } from "../router";
+import { seoForEntity } from "../seo";
 
 const fmtCtx = (n: number) =>
   n >= 1_000_000 ? `${(n / 1_000_000).toFixed(1)}M` : n >= 1000 ? `${Math.round(n / 1000)}k` : n ? String(n) : "—";
@@ -71,12 +73,24 @@ export default function LLMModelDetail({ id }: { id: string }) {
         <Card>
           <EmptyState icon="⚠️" title="Couldn't load model" sub={err} />
           <div style={{ marginTop: 8 }}>
-            <Button size="sm" onClick={() => (location.hash = "#/llm/models")}>← Back to models</Button>
+            <Button size="sm" onClick={() => navigate("llm/models")}>← Back to models</Button>
           </div>
         </Card>
       </div>
     );
   }
+
+  // Rich per-entity SEO once the model detail is known.
+  useEffect(() => {
+    if (model) {
+      seoForEntity({
+        kind: "Model",
+        name: model.name === model.id ? model.id : `${model.name} (${model.id})`,
+        description: model.description ? model.description.slice(0, 180) : undefined,
+        url: `${location.origin}/llm/model/${encodeURIComponent(model.id)}`,
+      });
+    }
+  }, [model]);
 
   if (!model) {
     return (
@@ -94,10 +108,10 @@ export default function LLMModelDetail({ id }: { id: string }) {
           <div className="sub" style={{ wordBreak: "break-all" }}>{model.id}</div>
         </div>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          <Button size="sm" variant="ghost" onClick={() => (location.hash = "#/llm/models")}>
+          <Button size="sm" variant="ghost" onClick={() => navigate("llm/models")}>
             ← Models
           </Button>
-          <Button size="sm" variant="ghost" onClick={() => (location.hash = "#/llm")}>
+          <Button size="sm" variant="ghost" onClick={() => navigate("llm")}>
             LLM &amp; Cost
           </Button>
         </div>

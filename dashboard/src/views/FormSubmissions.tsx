@@ -56,7 +56,7 @@ export default function FormSubmissions({ id }: { id: string }) {
         </div>
         <div className="page-head-actions">
           {form.published && form.slug && (
-            <Button onClick={() => window.open(`${location.origin}/#/f/${form.slug}`, "_blank")}>🔗 Open form</Button>
+            <Button onClick={() => window.open(`${location.origin}/f/${form.slug}`, "_blank")}>🔗 Open form</Button>
           )}
         </div>
       </div>

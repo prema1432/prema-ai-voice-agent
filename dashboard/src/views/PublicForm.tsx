@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { FormField, PublicFormDef, api } from "../api";
+import { seoForEntity } from "../seo";
 import PublicField from "./forms/PublicField";
 import { isFilled, visibleWhen } from "./forms/formulaClient";
 
@@ -18,6 +19,18 @@ export default function PublicForm({ slug }: { slug: string }) {
   useEffect(() => {
     api.publicForm(slug).then(setDef).catch((e) => setErr(String(e).slice(0, 200)));
   }, [slug]);
+
+  // Live SEO for the shared public link (what crawlers and link previews see).
+  useEffect(() => {
+    if (def) {
+      seoForEntity({
+        kind: "Form",
+        name: def.title,
+        description: `Fill out "${def.title}" — responses are stored securely and trigger the configured workflows.`,
+        url: `${location.origin}/f/${slug}`,
+      });
+    }
+  }, [def, slug]);
 
   const steps = def?.steps ?? [];
   const step = steps[stepIdx];

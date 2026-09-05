@@ -18,9 +18,9 @@ export type Route =
   | { name: "form-submissions"; id: string }
   | { name: "form-public"; slug: string };
 
-export function parseRoute(hash: string): Route {
-  const h = hash.replace(/^#\/?/, "");
-  const parts = h.split("/").filter(Boolean);
+export function parseRoute(path: string): Route {
+  const clean = path.replace(/^\/+|\/+$/g, "");
+  const parts = clean.split("/").filter(Boolean);
   if (parts.length === 0) return { name: "dashboard" };
   if (parts[0] === "campaigns" && parts[1]) return { name: "campaign-detail", id: parts[1] };
   if (parts[0] === "calls" && parts[1]) return { name: "call-detail", id: parts[1] };
@@ -46,7 +46,17 @@ export function parseRoute(hash: string): Route {
   return { name: "dashboard" };
 }
 
+/**
+ * History-API navigation (clean URLs, no hash). Pushes the path and notifies
+ * the router via a popstate event so the shell re-renders on every nav.
+ */
 export function navigate(path: string) {
-  if (location.hash === `#/${path}`) return;
-  location.hash = `#/${path}`;
+  const target = `/${path.replace(/^\/+/, "")}`;
+  if (location.pathname === target) return;
+  history.pushState(null, "", target);
+  window.dispatchEvent(new PopStateEvent("popstate"));
+}
+
+export function currentUrl(path: string): string {
+  return `${location.origin}${path.startsWith("/") ? path : `/${path}`}`;
 }

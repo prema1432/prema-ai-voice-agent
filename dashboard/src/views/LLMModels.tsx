@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { LlmCatalog, LlmModel, LlmUsage, api } from "../api";
 import { Badge, Button, Card, EmptyState } from "../components";
+import { navigate } from "../router";
 
 const fmtCtx = (n: number) =>
   n >= 1_000_000 ? `${(n / 1_000_000).toFixed(1)}M` : n >= 1000 ? `${Math.round(n / 1000)}k` : n ? String(n) : "—";
@@ -114,7 +115,7 @@ export default function LLMModels() {
         </div>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           <Button size="sm" variant="default" onClick={load}>⟳ Refresh</Button>
-          <Button size="sm" variant="ghost" onClick={() => (location.hash = "#/llm")}>
+          <Button size="sm" variant="ghost" onClick={() => navigate("llm")}>
             ← LLM &amp; Cost
           </Button>
         </div>
@@ -198,7 +199,7 @@ export default function LLMModels() {
                         cursor: "pointer",
                         color: "var(--accent-1)",
                       }}
-                      onClick={() => (location.hash = `#/llm/model/${encodeURIComponent(m.id)}`)}
+                      onClick={() => navigate(`llm/model/${encodeURIComponent(m.id)}`)}
                       title={`Open ${m.id} detail`}
                     >
                       {m.id}

@@ -64,7 +64,7 @@ export default function Forms() {
   }
 
   function shareLink(f: FormDef) {
-    const url = `${location.origin}/#/f/${encodeURIComponent(f.slug ?? "")}`;
+    const url = `${location.origin}/f/${encodeURIComponent(f.slug ?? "")}`;
     if (navigator.clipboard?.writeText) {
       navigator.clipboard.writeText(url).then(
         () => setMsg({ ok: true, text: `📋 Link copied: ${url}` }),

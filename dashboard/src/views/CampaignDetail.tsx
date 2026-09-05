@@ -12,6 +12,7 @@ import {
   fmtDate,
 } from "../components";
 import { navigate } from "../router";
+import { seoForEntity } from "../seo";
 import CampaignRunCard from "./campaigns/RunPlanner";
 import LeadEditModal from "./campaigns/LeadEditModal";
 import PipelineModal from "./campaigns/PipelineModal";
@@ -52,6 +53,31 @@ export default function CampaignDetail({ id }: { id: string }) {
     const t = setInterval(load, 5000);
     return () => clearInterval(t);
   }, [load]);
+
+  // Rich per-entity SEO once the campaign loads.
+  useEffect(() => {
+    if (campaign) {
+      const st = (campaign.stats ?? {}) as CampaignStats;
+      const leadCount =
+        st.total !== undefined ? `${st.total} lead${st.total === 1 ? "" : "s"}` : "";
+      const lang =
+        (campaign.languages ?? []).length > 0
+          ? `Languages: ${(campaign.languages ?? []).join(", ")}`
+          : "";
+      const status = campaign.status ? `Status: ${campaign.status}` : "";
+      const descParts = [campaign.description?.trim(), status, lang, leadCount].filter(
+        Boolean,
+      );
+      seoForEntity({
+        kind: "Campaign",
+        name: campaign.name,
+        description:
+          (descParts.length ? descParts.join(" · ") : "AI voice campaign").slice(0, 200) ||
+          "AI voice campaign",
+        url: `${location.origin}/campaigns/${id}`,
+      });
+    }
+  }, [campaign, id]);
 
   if (!campaign) {
     return (

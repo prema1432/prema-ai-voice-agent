@@ -104,7 +104,7 @@ export default function FormBuilder({ id }: { id: string }) {
         setMsg({ ok: true, text: "Form is offline." });
       } else {
         const r = await api.publishForm(form.id);
-        setMsg({ ok: true, text: `🚀 Live at ${location.origin}/#/f/${r.slug}` });
+        setMsg({ ok: true, text: `🚀 Live at ${location.origin}/f/${r.slug}` });
       }
       load();
     } catch (e) {
@@ -116,7 +116,7 @@ export default function FormBuilder({ id }: { id: string }) {
 
   function copyShare() {
     if (!form?.slug) return;
-    const url = `${location.origin}/#/f/${encodeURIComponent(form.slug)}`;
+    const url = `${location.origin}/f/${encodeURIComponent(form.slug)}`;
     navigator.clipboard?.writeText?.(url);
     setMsg({ ok: true, text: `🔗 ${url}` });
   }
@@ -313,7 +313,7 @@ export default function FormBuilder({ id }: { id: string }) {
 
           <Card title="🔗 Share" style={{ fontSize: 12.5, color: "var(--text-muted)" }}>
             {form.published && form.slug
-              ? <div>Anyone with <code>{location.origin}/#/f/{form.slug}</code> can fill this form.</div>
+              ? <div>Anyone with <code>{location.origin}/f/{form.slug}</code> can fill this form.</div>
               : <div>Publish to generate a public share link. Submissions are stored in MongoDB and every workflow action is logged per response.</div>}
           </Card>
         </div>

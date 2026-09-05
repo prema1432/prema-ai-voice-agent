@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { LlmModel, api } from "../api";
+import { navigate } from "../router";
 
 const shortId = (m: string) => (m.length > 34 ? `${m.slice(0, 31)}…` : m);
 
@@ -95,7 +96,7 @@ export default function ModelPicker() {
             className="mp-manage"
             onClick={() => {
               setOpen(false);
-              location.hash = "#/llm/models";
+              navigate("llm/models");
             }}
           >
             📚 Browse all models →

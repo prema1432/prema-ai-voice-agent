@@ -295,3 +295,68 @@
   .table { font-size: 12px; }
   .page-head h2 { font-size: 19px; }
 }
+
+/* ── Mobile nav strip (fixes tall wrapped sidebar on narrow screens) ── */
+@media (max-width: 980px) {
+  .sidebar {
+    position: sticky;
+    top: 0;
+    z-index: 70;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    align-items: center;
+    gap: 4px;
+    padding: 8px 10px;
+    height: auto;
+    scrollbar-width: thin;
+  }
+  .sidebar-logo { padding: 0; margin-right: 6px; flex: none; gap: 7px; }
+  .sidebar-logo .mark { width: 28px; height: 28px; font-size: 14px; }
+  .sidebar-logo .name { font-size: 12px; white-space: nowrap; }
+  .sidebar-logo .tag { display: none; }
+  .nav-item {
+    flex: none;
+    width: auto;
+    padding: 7px 10px;
+    white-space: nowrap;
+    font-size: 12.5px;
+    border-radius: 9px;
+  }
+  .nav-item .ic { width: auto; font-size: 13px; }
+  .nav-item:hover { transform: none; }
+  .model-picker { display: none; }
+  .sidebar-foot {
+    flex: none;
+    flex-direction: row;
+    align-items: center;
+    margin-left: auto;
+    padding: 0 2px 0 8px;
+    border: none;
+    gap: 6px;
+  }
+  .sidebar-foot .pill { display: none; }
+  .theme-toggle { margin: 0; padding: 5px 9px; white-space: nowrap; }
+}
+
+@media (max-width: 980px) {
+  .topbar-links { display: none; } /* nav strip in the sidebar covers every page */
+}
+
+/* Keep the CRM board inside the page on any viewport (columns scroll inside). */
+.kanban { width: 100%; max-width: 100%; }
+
+/* Grid tracks must be able to shrink below content width or wide children
+   (CRM board) blow out the whole page on smaller screens. */
+.app-shell { grid-template-columns: 248px minmax(0, 1fr); }
+@media (max-width: 980px) {
+  .app-shell { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* Grid children must be allowed to shrink, and mobile tracks must use
+   minmax(0, 1fr), or long content stretches the page horizontally. */
+.grid-2 > * { min-width: 0; }
+.grid-3 > * { min-width: 0; }
+@media (max-width: 760px) {
+  .grid-2 { grid-template-columns: minmax(0, 1fr) !important; }
+}

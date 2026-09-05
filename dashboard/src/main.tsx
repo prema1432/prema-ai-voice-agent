@@ -17,6 +17,10 @@ import Crm from "./views/Crm";
 import Notifications from "./views/Notifications";
 import Integrations from "./views/Integrations";
 import AuditLogs from "./views/AuditLogs";
+import Forms from "./views/Forms";
+import FormBuilder from "./views/FormBuilder";
+import FormSubmissions from "./views/FormSubmissions";
+import PublicForm from "./views/PublicForm";
 import "./styles.css";
 import "./platform.css";
 
@@ -35,6 +39,7 @@ function useRoute(): ReturnType<typeof parseRoute> {
 const NAV = [
   { key: "dashboard", label: "Dashboard", icon: "📊", path: "" },
   { key: "campaigns", label: "Campaigns", icon: "📋", path: "campaigns" },
+  { key: "forms", label: "Forms", icon: "📝", path: "forms" },
   { key: "crm", label: "CRM Board", icon: "🗂", path: "crm" },
   { key: "agents", label: "Agents", icon: "🤖", path: "agents" },
   { key: "voicelab", label: "Voice Lab", icon: "🎤", path: "voicelab" },
@@ -48,6 +53,7 @@ const NAV = [
 const FOOT_LINKS: { label: string; path: string }[] = [
   { label: "Dashboard", path: "" },
   { label: "Campaigns", path: "campaigns" },
+  { label: "Forms", path: "forms" },
   { label: "CRM Pipeline", path: "crm" },
   { label: "Voice Lab", path: "voicelab" },
   { label: "Agents", path: "agents" },
@@ -63,6 +69,7 @@ function isActive(routeName: string, key: string): boolean {
   if (key === "calls") return routeName === "calls" || routeName === "call-detail";
   if (key === "voicelab") return routeName === "voicelab";
   if (key === "crm") return routeName === "crm";
+  if (key === "forms") return routeName === "forms" || routeName === "form-builder" || routeName === "form-submissions";
   return routeName === key;
 }
 
@@ -82,6 +89,11 @@ function App() {
   const llmKeySet = health?.llm_key_set === true;
   const backendUp = !err && health != null;
   const changeTheme = () => setTheme(toggleTheme());
+
+  // Public share link: standalone page without the dashboard shell.
+  if (route.name === "form-public") {
+    return <PublicForm slug={route.slug} />;
+  }
 
   return (
     <div className="app-shell">
@@ -174,6 +186,9 @@ function App() {
           {route.name === "dashboard" && <Dashboard health={health} />}
           {route.name === "campaigns" && <Campaigns />}
           {route.name === "campaign-detail" && <CampaignDetail id={route.id} />}
+          {route.name === "forms" && <Forms />}
+          {route.name === "form-builder" && <FormBuilder id={route.id} />}
+          {route.name === "form-submissions" && <FormSubmissions id={route.id} />}
           {route.name === "agents" && <Agents />}
           {route.name === "llm" && <LlmPage />}
           {route.name === "voicelab" && <VoiceLab presetAgentId={route.agentId} />}

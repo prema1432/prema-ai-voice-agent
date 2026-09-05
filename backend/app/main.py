@@ -9,7 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
 from app.db import close_db, connect_db
-from app.routers import agents, audit, calls, campaigns, crm, integrations, leads, llm, notifications
+from app.routers import agents, audit, calls, campaigns, crm, forms, integrations, leads, llm, notifications
 
 logging.basicConfig(
     level=logging.INFO,
@@ -81,6 +81,7 @@ app.include_router(agents.router)
 app.include_router(audit.router)
 app.include_router(campaigns.router)
 app.include_router(crm.router)
+app.include_router(forms.router)
 app.include_router(integrations.router)
 app.include_router(leads.router)
 app.include_router(calls.router)

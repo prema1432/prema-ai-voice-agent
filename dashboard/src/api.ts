@@ -130,6 +130,90 @@ export interface LlmUsage {
   recent: LlmUsageRow[];
 }
 
+/* ── Form builder types ────────────────────────────────── */
+export interface FormOptionsApi {
+  url: string;
+  method?: "GET" | "POST";
+  headers?: string;
+  body?: string;
+  data_path?: string;
+  label_path?: string;
+  value_path?: string;
+}
+
+export interface FormShowWhen {
+  field: string;
+  op: "eq" | "neq" | "in" | "gt" | "lt" | "empty";
+  value: string;
+}
+
+export interface FormField {
+  id: string;
+  label: string;
+  type: string;
+  required?: boolean;
+  placeholder?: string;
+  help?: string;
+  default?: string;
+  options?: string[];
+  options_api?: FormOptionsApi | null;
+  formula?: string;
+  computed?: boolean;
+  show_when?: FormShowWhen | null;
+  validation?: Record<string, string | number>;
+  width?: "full" | "half";
+}
+
+export interface FormStep {
+  id: string;
+  title: string;
+  description?: string;
+  fields: FormField[];
+}
+
+export interface FormAction {
+  id: string;
+  type: string;
+  name: string;
+  enabled?: boolean;
+  config: Record<string, unknown>;
+}
+
+export interface FormDef {
+  id: string;
+  title: string;
+  description?: string;
+  slug?: string;
+  published?: boolean;
+  published_at?: string | null;
+  created_at?: string;
+  stats?: { submissions?: number };
+  settings?: { submit_label?: string; success_message?: string; redirect_url?: string; show_progress?: boolean };
+  steps: FormStep[];
+  actions?: FormAction[];
+  submissions?: number;
+  field_count?: number;
+}
+
+export interface FormSubmission {
+  id: string;
+  form_id?: string;
+  form_title?: string;
+  data: Record<string, unknown>;
+  answers?: Record<string, unknown>;
+  actions?: { action_id?: string; type: string; name: string; status: string; detail: string; at: string }[];
+  created_at?: string;
+}
+
+export interface PublicFormDef {
+  title: string;
+  description?: string;
+  slug: string;
+  settings: FormDef["settings"];
+  steps: FormStep[];
+  published_at?: string;
+}
+
 /* ── Platform ops types ─────────────────────────────────── */
 export interface NotificationItem {
   id: string;
@@ -337,6 +421,27 @@ export const api = {
       latency_ms: number;
       usage?: { prompt_tokens: number; completion_tokens: number };
     }>("/llm/test", { method: "POST", body: JSON.stringify({ model: model ?? null }) }),
+
+  // forms
+  listForms: () => req<FormDef[]>("/forms"),
+  getForm: (id: string) => req<FormDef>(`/forms/${id}`),
+  createForm: (body: Partial<FormDef>) => req<{ id: string }>("/forms", { method: "POST", body: JSON.stringify(body) }),
+  updateForm: (id: string, body: Partial<FormDef>) =>
+    req<{ updated: boolean }>(`/forms/${id}`, { method: "PUT", body: JSON.stringify(body) }),
+  deleteForm: (id: string) => req<{ deleted: boolean }>(`/forms/${id}`, { method: "DELETE" }),
+  publishForm: (id: string) => req<{ published: boolean; slug: string }>(`/forms/${id}/publish`, { method: "POST" }),
+  unpublishForm: (id: string) => req<{ published: boolean }>(`/forms/${id}/unpublish`, { method: "POST" }),
+  formSubmissions: (id: string) => req<FormSubmission[]>(`/forms/${id}/submissions`),
+  deleteSubmission: (sid: string) => req<{ deleted: boolean }>(`/forms/submissions/${sid}`, { method: "DELETE" }),
+  // public (published forms)
+  publicForm: (slug: string) => req<PublicFormDef>(`/public/forms/${slug}`),
+  publicOptions: (slug: string, field: string) =>
+    req<{ ok: boolean; options: { label: string; value: string }[]; error?: string }>(`/public/forms/${slug}/options?field=${encodeURIComponent(field)}`),
+  submitPublic: (slug: string, data: Record<string, unknown>) =>
+    req<{ ok: boolean; submission_id: string; form_title?: string }>(`/public/forms/${slug}/submit`, {
+      method: "POST",
+      body: JSON.stringify({ data }),
+    }),
 };
 
 export const LANGUAGES: Record<string, string> = {

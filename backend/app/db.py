@@ -30,6 +30,9 @@ COLLECTIONS = {
     "notifications": "notifications",
     "integrations": "integrations",
     "delivery_logs": "delivery_logs",
+    # Form builder
+    "forms": "forms",
+    "form_submissions": "form_submissions",
 }
 
 

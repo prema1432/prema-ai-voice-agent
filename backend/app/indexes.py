@@ -38,3 +38,8 @@ async def ensure_indexes(db: AsyncIOMotorDatabase) -> None:
 
     await db["delivery_logs"].create_index([("ts", -1)])
     await db["delivery_logs"].create_index([("direction", 1), ("ts", -1)])
+
+    await db["forms"].create_index([("published", 1), ("slug", 1)])
+    await db["forms"].create_index("created_at")
+    await db["form_submissions"].create_index([("form_id", 1), ("created_at", -1)])
+    await db["form_submissions"].create_index("slug")

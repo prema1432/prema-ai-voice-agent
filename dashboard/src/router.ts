@@ -10,7 +10,11 @@ export type Route =
   | { name: "crm"; campaignId?: string }
   | { name: "notifications" }
   | { name: "integrations" }
-  | { name: "audit" };
+  | { name: "audit" }
+  | { name: "forms" }
+  | { name: "form-builder"; id: string }
+  | { name: "form-submissions"; id: string }
+  | { name: "form-public"; slug: string };
 
 export function parseRoute(hash: string): Route {
   const h = hash.replace(/^#\/?/, "");
@@ -27,6 +31,12 @@ export function parseRoute(hash: string): Route {
   if (parts[0] === "agents") return { name: "agents" };
   if (parts[0] === "llm") return { name: "llm" };
   if (parts[0] === "calls") return { name: "calls" };
+  if (parts[0] === "f" && parts[1]) return { name: "form-public", slug: parts[1] };
+  if (parts[0] === "forms" && parts[1] && parts[2] === "submissions") {
+    return { name: "form-submissions", id: parts[1] };
+  }
+  if (parts[0] === "forms" && parts[1]) return { name: "form-builder", id: parts[1] };
+  if (parts[0] === "forms") return { name: "forms" };
   return { name: "dashboard" };
 }
 

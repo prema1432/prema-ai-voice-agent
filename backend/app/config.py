@@ -75,6 +75,14 @@ class Settings:
         self.sip_trunk_endpoint: str = os.getenv("SIP_TRUNK_ENDPOINT", "pjsip:trunk")
         self.dial_timeout_seconds: int = int(os.getenv("DIAL_TIMEOUT_SECONDS", "45"))
 
+        # Email (SMTP) — used by form actions + notifications
+        self.smtp_host: str = os.getenv("SMTP_HOST", "")
+        self.smtp_port: int = int(os.getenv("SMTP_PORT", "587"))
+        self.smtp_user: str = os.getenv("SMTP_USER", "")
+        self.smtp_password: str = os.getenv("SMTP_PASSWORD", "")
+        self.smtp_from: str = os.getenv("SMTP_FROM", "Prema AI Voice Agent <no-reply@prema.local>")
+        self.smtp_tls: bool = _bool(os.getenv("SMTP_TLS"), True)
+
         # Compliance
         self.call_timezone: str = os.getenv("CALL_TIMEZONE", "Asia/Kolkata")
         self.call_window_start: int = int(os.getenv("CALL_WINDOW_START", "9"))

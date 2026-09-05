@@ -9,6 +9,7 @@ from pathlib import Path
 import httpx
 from fastapi import APIRouter
 from pydantic import BaseModel, Field
+from urllib.parse import unquote
 
 from app.config import settings
 from app.db import collection
@@ -16,17 +17,79 @@ from app.db import collection
 log = logging.getLogger(__name__)
 router = APIRouter(prefix="/llm", tags=["llm"])
 
-# In-process cache of the free-model catalog (refreshed at most every 10 min).
+# In-process cache of the model catalog (refreshed at most every 10 min).
 _models_cache: dict = {"at": 0.0, "models": []}
 _MODEL_TTL = 600.0
 
 
-def _fallback_models() -> list[str]:
-    return list(settings.free_model_fallbacks)
+def _fallback_models() -> list[dict]:
+    return [
+        {
+            "id": mid,
+            "name": mid,
+            "context_length": 0,
+            "free": mid.endswith(":free"),
+            "pricing": {"prompt": None, "completion": None, "request": None},
+            "description": "",
+        }
+        for mid in settings.free_model_fallbacks
+    ]
 
 
-async def _fetch_models() -> list[str]:
-    """Pull the live OpenRouter model list (free tier first), cached."""
+def _per_mtok(value: object) -> float | None:
+    """Convert OpenRouter's per-token price into USD / 1M tokens."""
+    try:
+        f = float(value)
+    except (TypeError, ValueError):
+        return None
+    return round(f * 1_000_000, 4) if f > 0 else 0.0
+
+
+def _normalize_model(m: dict) -> dict:
+    pricing = m.get("pricing") or {}
+    model_id = str(m.get("id", ""))
+    return {
+        "id": model_id,
+        "name": m.get("name") or model_id,
+        "context_length": int(m.get("context_length") or 0),
+        "free": model_id.endswith(":free"),
+        "pricing": {
+            "prompt": _per_mtok(pricing.get("prompt")),
+            "completion": _per_mtok(pricing.get("completion")),
+            "request": _per_mtok(pricing.get("request")),
+        },
+        "description": (m.get("description") or "").strip(),
+    }
+
+
+def _sort_models(models: list[dict]) -> list[dict]:
+    """Default model first, then free tier, then largest context, then name."""
+    default = settings.openrouter_llm_model
+
+    def key(m: dict) -> tuple:
+        return (
+            0 if m["id"] == default else 1,
+            0 if m["free"] else 1,
+            -(m.get("context_length") or 0),
+            m["id"],
+        )
+
+    return sorted(models, key=key)
+
+
+def _bare_model(model_id: str) -> dict:
+    return {
+        "id": model_id,
+        "name": model_id,
+        "context_length": 0,
+        "free": model_id.endswith(":free"),
+        "pricing": {"prompt": None, "completion": None, "request": None},
+        "description": "",
+    }
+
+
+async def _fetch_models() -> list[dict]:
+    """Pull the live OpenRouter model catalog (rich fields), cached."""
     now = time.monotonic()
     if _models_cache["models"] and now - _models_cache["at"] < _MODEL_TTL:
         return _models_cache["models"]
@@ -37,19 +100,40 @@ async def _fetch_models() -> list[str]:
                 f"{settings.openrouter_base_url}/models", headers=headers
             )
         data = resp.json() if resp.status_code == 200 else {}
-        free = sorted({
-            m["id"] for m in data.get("data", [])
-            if str(m.get("id", "")).endswith(":free")
-        })
-        models = free or _fallback_models()
+        raw = data.get("data", [])
+        models = [_normalize_model(m) for m in raw if m.get("id")]
+        models = models or _fallback_models()
     except Exception as exc:  # noqa: BLE001
         log.warning("openrouter /models unavailable (%s) — using fallback list", exc)
         models = _fallback_models()
-    # Keep the current/default model near the top for convenience.
-    if settings.openrouter_llm_model not in models:
-        models.insert(0, settings.openrouter_llm_model)
+    # Ensure the current/default model is always present and listed first.
+    default = settings.openrouter_llm_model
+    if not any(m["id"] == default for m in models):
+        models.insert(0, _bare_model(default))
+    models = _sort_models(models)
     _models_cache.update({"at": now, "models": models})
     return models
+
+
+async def _fetch_model_detail(model_id: str) -> dict | None:
+    """Detail for one model — from the cached catalog or a direct fetch."""
+    models = await _fetch_models()
+    for m in models:
+        if m["id"] == model_id:
+            return dict(m)
+    try:
+        headers = {"Authorization": f"Bearer {settings.openrouter_api_key}"}
+        async with httpx.AsyncClient(timeout=8.0) as client:
+            resp = await client.get(
+                f"{settings.openrouter_base_url}/models/{model_id}", headers=headers
+            )
+        if resp.status_code == 200:
+            data = resp.json().get("data") or {}
+            if data.get("id"):
+                return _normalize_model(data)
+    except Exception as exc:  # noqa: BLE001
+        log.warning("openrouter model %s unavailable (%s)", model_id, exc)
+    return None
 
 
 def _env_path() -> Path:
@@ -84,11 +168,35 @@ def _persist_env_model(model: str) -> bool:
 
 @router.get("/models")
 async def llm_models() -> dict:
-    """Dynamic free-model catalog (OpenRouter live, fallback curated list)."""
+    """Dynamic model catalog (OpenRouter live, fallback curated list).
+
+    `default` is the model every new conversation starts with; the list is
+    sorted with it first. `current` is kept as a legacy alias.
+    """
     return {
+        "default": settings.openrouter_llm_model,
         "current": settings.openrouter_llm_model,
         "models": await _fetch_models(),
     }
+
+
+@router.get("/models/{rest:path}")
+async def llm_model_detail(rest: str) -> dict:
+    """Detail for a single model (dynamic route: /llm/models/{model_id}).
+
+    OpenRouter ids contain slashes (org/model:tag), so the id is captured as a
+    catch-all path segment and URL-decoded here.
+    """
+    model_id = unquote(rest)
+    detail = await _fetch_model_detail(model_id)
+    if detail is None:
+        return {"found": False, "id": model_id, "model": None,
+                "default": settings.openrouter_llm_model}
+    detail = dict(detail)
+    detail["found"] = True
+    detail["default"] = settings.openrouter_llm_model
+    detail["is_default"] = detail["id"] == settings.openrouter_llm_model
+    return detail
 
 
 class LlmModelIn(BaseModel):
@@ -157,6 +265,7 @@ async def llm_status() -> dict:
     return {
         "enabled": bool(settings.openrouter_api_key),
         "model": settings.openrouter_llm_model,
+        "default_model": settings.openrouter_llm_model,
         "summary_model": settings.openrouter_summary_model,
         "base_url": settings.openrouter_base_url,
         "key_set": bool(settings.openrouter_api_key),

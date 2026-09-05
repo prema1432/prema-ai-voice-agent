@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { api } from "../api";
+import { LlmModel, api } from "../api";
 
 const shortId = (m: string) => (m.length > 34 ? `${m.slice(0, 31)}…` : m);
 
@@ -8,7 +8,7 @@ const shortId = (m: string) => (m.length > 34 ? `${m.slice(0, 31)}…` : m);
  * free-model catalog and run a quick latency test against it.
  */
 export default function ModelPicker() {
-  const [models, setModels] = useState<string[]>([]);
+  const [models, setModels] = useState<LlmModel[]>([]);
   const [current, setCurrent] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -19,19 +19,19 @@ export default function ModelPicker() {
       .llmModels()
       .then((r) => {
         setModels(r.models);
-        setCurrent(r.current);
+        setCurrent(r.default ?? r.current ?? null);
       })
       .catch(() => {});
   }, []);
 
-  async function apply(m: string) {
-    if (!m || m === current) return;
+  async function apply(m: LlmModel) {
+    if (!m.id || m.id === current) return;
     setBusy(true);
     setMsg(null);
     try {
-      const r = await api.setLlmModel(m);
+      const r = await api.setLlmModel(m.id);
       setCurrent(r.model);
-      setMsg({ ok: true, text: `✓ Active model → ${r.model}` });
+      setMsg({ ok: true, text: `✓ Default model → ${r.model}` });
       setOpen(false);
     } catch (e) {
       setMsg({ ok: false, text: String(e).slice(0, 140) });
@@ -78,18 +78,28 @@ export default function ModelPicker() {
           <div className="mp-list-label">Free models — switch live</div>
           {models.map((m) => (
             <button
-              key={m}
-              className={`mp-opt ${m === current ? "on" : ""}`}
+              key={m.id}
+              className={`mp-opt ${m.id === current ? "on" : ""}`}
               onClick={() => apply(m)}
-              title={m}
+              title={m.id}
             >
-              <span>{shortId(m)}</span>
-              {m === current && <b>●</b>}
+              <span>{shortId(m.id)}</span>
+              {m.free && <em className="mp-free">free</em>}
+              {m.id === current && <b>●</b>}
             </button>
           ))}
           {models.length === 0 && (
             <div className="mp-empty">Catalog unavailable — check backend.</div>
           )}
+          <button
+            className="mp-manage"
+            onClick={() => {
+              setOpen(false);
+              location.hash = "#/llm/models";
+            }}
+          >
+            📚 Browse all models →
+          </button>
         </div>
       )}
 

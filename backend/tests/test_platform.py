@@ -67,3 +67,28 @@ def test_campaign_schedule_defaults_and_validation():
 def test_event_catalog_includes_scheduling():
     assert "campaign.scheduled" in EVENTS
     assert "campaign.unscheduled" in EVENTS
+
+
+def test_llm_model_detail_route_decodes_slashed_ids():
+    """Model ids contain slashes (org/model:tag) — the catch-all route must
+    URL-decode them back into the real OpenRouter id."""
+    import asyncio
+    from unittest.mock import patch
+
+    from app.routers import llm as llm_router
+
+    async def fake_detail(model_id: str):
+        return None
+
+    async def run():
+        with patch.object(llm_router, "_fetch_model_detail", fake_detail):
+            res = await llm_router.llm_model_detail("z-ai%2Fglm-5.2%3Afree")
+            assert res["id"] == "z-ai/glm-5.2:free"
+            assert res["found"] is False
+            # Raw (already-decoded) ids pass through untouched.
+            res2 = await llm_router.llm_model_detail(
+                "dots-studio/dots-3-note-preview:free"
+            )
+            assert res2["id"] == "dots-studio/dots-3-note-preview:free"
+
+    asyncio.run(run())

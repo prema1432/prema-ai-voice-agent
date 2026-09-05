@@ -268,6 +268,32 @@
   content: "🔍"; position: absolute; left: 10px; top: 50%;
   transform: translateY(-50%); font-size: 13px; opacity: 0.8;
 }
+/* ── Model picker extras ───────────────────────────────── */
+.mp-opt .mp-free {
+  font-style: normal;
+  font-size: 9px;
+  font-weight: 700;
+  color: var(--green);
+  border: 1px solid currentColor;
+  border-radius: 99px;
+  padding: 0 5px;
+  margin-left: 4px;
+}
+.mp-manage {
+  width: 100%;
+  border: none;
+  border-top: 1px solid var(--border-soft);
+  background: transparent;
+  color: var(--accent-1);
+  font-size: 12px;
+  font-weight: 650;
+  padding: 9px 12px;
+  cursor: pointer;
+  font-family: inherit;
+  text-align: left;
+}
+.mp-manage:hover { color: var(--accent-2); background: var(--card-hover); }
+
 .chips { display: flex; gap: 6px; flex-wrap: wrap; }
 .chip {
   border: 1px solid var(--border); background: var(--well); color: var(--text-muted);

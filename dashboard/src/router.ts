@@ -4,6 +4,8 @@ export type Route =
   | { name: "campaign-detail"; id: string }
   | { name: "agents" }
   | { name: "llm" }
+  | { name: "llm-models" }
+  | { name: "llm-model"; id: string }
   | { name: "voicelab"; agentId?: string }
   | { name: "calls" }
   | { name: "call-detail"; id: string }
@@ -29,6 +31,10 @@ export function parseRoute(hash: string): Route {
   if (parts[0] === "integrations") return { name: "integrations" };
   if (parts[0] === "audit") return { name: "audit" };
   if (parts[0] === "agents") return { name: "agents" };
+  if (parts[0] === "llm" && parts[1] === "models") return { name: "llm-models" };
+  if (parts[0] === "llm" && parts[1] === "model" && parts[2]) {
+    return { name: "llm-model", id: decodeURIComponent(parts[2]) };
+  }
   if (parts[0] === "llm") return { name: "llm" };
   if (parts[0] === "calls") return { name: "calls" };
   if (parts[0] === "f" && parts[1]) return { name: "form-public", slug: parts[1] };

@@ -10,6 +10,8 @@ import Campaigns from "./views/Campaigns";
 import CampaignDetail from "./views/CampaignDetail";
 import Agents from "./views/Agents";
 import LlmPage from "./views/LLM";
+import LLMModels from "./views/LLMModels";
+import LLMModelDetail from "./views/LLMModelDetail";
 import VoiceLab from "./views/VoiceLab";
 import CallsView from "./views/Calls";
 import CallDetail from "./views/CallDetail";
@@ -45,6 +47,7 @@ const NAV = [
   { key: "voicelab", label: "Voice Lab", icon: "🎤", path: "voicelab" },
   { key: "calls", label: "Call Logs", icon: "📞", path: "calls" },
   { key: "llm", label: "LLM & Cost", icon: "🧠", path: "llm" },
+  { key: "llm-models", label: "LLM Models", icon: "📚", path: "llm/models" },
   { key: "integrations", label: "Integrations", icon: "🔌", path: "integrations" },
   { key: "notifications", label: "Notifications", icon: "🔔", path: "notifications" },
   { key: "audit", label: "Audit Logs", icon: "🧾", path: "audit" },
@@ -59,6 +62,7 @@ const FOOT_LINKS: { label: string; path: string }[] = [
   { label: "Agents", path: "agents" },
   { label: "Call Logs", path: "calls" },
   { label: "LLM & Cost", path: "llm" },
+  { label: "LLM Models", path: "llm/models" },
   { label: "Integrations", path: "integrations" },
   { label: "Notifications", path: "notifications" },
   { label: "Audit Logs", path: "audit" },
@@ -70,6 +74,8 @@ function isActive(routeName: string, key: string): boolean {
   if (key === "voicelab") return routeName === "voicelab";
   if (key === "crm") return routeName === "crm";
   if (key === "forms") return routeName === "forms" || routeName === "form-builder" || routeName === "form-submissions";
+  if (key === "llm") return routeName === "llm" || routeName === "llm-models" || routeName === "llm-model";
+  if (key === "llm-models") return routeName === "llm-models" || routeName === "llm-model";
   return routeName === key;
 }
 
@@ -191,6 +197,8 @@ function App() {
           {route.name === "form-submissions" && <FormSubmissions id={route.id} />}
           {route.name === "agents" && <Agents />}
           {route.name === "llm" && <LlmPage />}
+          {route.name === "llm-models" && <LLMModels />}
+          {route.name === "llm-model" && <LLMModelDetail id={route.id} />}
           {route.name === "voicelab" && <VoiceLab presetAgentId={route.agentId} />}
           {route.name === "calls" && <CallsView />}
           {route.name === "call-detail" && <CallDetail id={route.id} />}

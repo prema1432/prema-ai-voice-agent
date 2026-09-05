@@ -43,7 +43,10 @@ export default function LlmPage() {
           <h2>🧠 LLM &amp; Cost</h2>
           <div className="sub">Live model, thinking effort, token usage and cost monitoring</div>
         </div>
-        <div style={{ display: "flex", gap: 8 }}>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <Button size="sm" variant="ghost" onClick={() => (location.hash = "#/llm/models")}>
+            📚 Browse models
+          </Button>
           {[1, 7, 30].map((d) => (
             <Button key={d} size="sm" variant={days === d ? "primary" : "default"} onClick={() => setDays(d)}>
               {d}d

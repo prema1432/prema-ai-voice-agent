@@ -103,6 +103,7 @@ export interface AgentMeta {
 export interface LlmStatus {
   enabled: boolean;
   model: string;
+  default_model: string;
   summary_model: string;
   base_url: string;
   key_set: boolean;
@@ -110,6 +111,30 @@ export interface LlmStatus {
   send_reasoning: boolean;
   usage_enabled: boolean;
   free_fallbacks: string[];
+}
+
+export interface LlmModelPricing {
+  prompt: number | null;
+  completion: number | null;
+  request: number | null;
+}
+
+export interface LlmModel {
+  id: string;
+  name: string;
+  context_length: number;
+  free: boolean;
+  pricing: LlmModelPricing;
+  description: string;
+  found?: boolean;
+  is_default?: boolean;
+  default?: string;
+}
+
+export interface LlmCatalog {
+  default: string;
+  current?: string;
+  models: LlmModel[];
 }
 
 export interface LlmUsageRow {
@@ -406,7 +431,8 @@ export const api = {
   // llm
   llmStatus: () => req<LlmStatus>("/llm/status"),
   llmUsage: (days = 7) => req<LlmUsage>(`/llm/usage?days=${days}`),
-  llmModels: () => req<{ current: string; models: string[] }>("/llm/models"),
+  llmModels: () => req<LlmCatalog>("/llm/models"),
+  llmModelDetail: (id: string) => req<LlmModel>(`/llm/models/${encodeURIComponent(id)}`),
   setLlmModel: (model: string) =>
     req<{ model: string; persisted: boolean; previous: string }>("/llm/model", {
       method: "PUT",

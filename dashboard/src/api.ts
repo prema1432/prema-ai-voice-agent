@@ -49,6 +49,7 @@ export interface Lead {
   last_outcome?: string | null;
   last_call_at?: string | null;
   call_count: number;
+  stage?: string;
 }
 
 export interface CallSession {
@@ -124,8 +125,116 @@ export interface LlmUsage {
   recent: LlmUsageRow[];
 }
 
+/* ── Platform ops types ─────────────────────────────────── */
+export interface NotificationItem {
+  id: string;
+  title: string;
+  body: string;
+  kind: string;
+  channels?: Record<string, string>;
+  data?: Record<string, unknown>;
+  read: boolean;
+  ts?: string;
+}
+
+export interface AuditEntry {
+  id: string;
+  action: string;
+  actor: string;
+  entity_type?: string | null;
+  entity_id?: string | null;
+  meta?: Record<string, unknown>;
+  ts?: string;
+}
+
+export interface Integration {
+  id: string;
+  name: string;
+  type: string;
+  description: string;
+  enabled: boolean;
+  config: { url: string; secret: string };
+  events: string[];
+  token?: string;
+  created_at?: string;
+}
+
+export interface IntegrationCatalogType {
+  label: string;
+  icon: string;
+  blurb: string;
+  fields: string[];
+}
+
+export interface DeliveryLog {
+  id: string;
+  integration_name?: string;
+  integration_type?: string;
+  direction: "in" | "out";
+  event?: string;
+  url?: string;
+  status: string;
+  response?: string;
+  error?: string;
+  ts?: string;
+}
+
+export interface CrmStage {
+  id: string;
+  name: string;
+  color: string;
+  terminal: boolean;
+}
+
+export interface CrmBoard {
+  campaign_id: string;
+  stages: CrmStage[];
+  columns: Record<string, Lead[]>;
+  totals: { leads: number; in_progress: number; won: number; lost: number };
+}
+
 export const api = {
   health: () => req<Record<string, unknown>>("/health"),
+
+  // notifications
+  listNotifications: (unreadOnly = false) =>
+    req<NotificationItem[]>(`/notifications${unreadOnly ? "?unread_only=true" : ""}`),
+  unreadCount: () => req<{ count: number }>("/notifications/unread-count"),
+  markNotificationRead: (id: string) =>
+    req<{ updated: boolean }>(`/notifications/${id}/read`, { method: "POST" }),
+  markAllRead: () => req<{ updated: number }>("/notifications/read-all", { method: "POST" }),
+  sendSampleNotification: () => req<{ sent: boolean }>("/notifications/sample", { method: "POST" }),
+
+  // audit trail
+  listAudit: (params: Record<string, string> = {}) => {
+    const q = new URLSearchParams(params).toString();
+    return req<AuditEntry[]>(`/audit${q ? `?${q}` : ""}`);
+  },
+  auditStats: () => req<{ by_action: Record<string, number> }>("/audit/stats"),
+
+  // integrations
+  integrationCatalog: () => req<{ types: Record<string, IntegrationCatalogType>; events: string[] }>("/integrations/catalog"),
+  listIntegrations: () => req<Integration[]>("/integrations"),
+  createIntegration: (body: unknown) => req<{ id: string; token: string }>("/integrations", { method: "POST", body: JSON.stringify(body) }),
+  updateIntegration: (id: string, body: unknown) =>
+    req<{ updated: boolean }>(`/integrations/${id}`, { method: "PUT", body: JSON.stringify(body) }),
+  deleteIntegration: (id: string) => req<{ deleted: boolean }>(`/integrations/${id}`, { method: "DELETE" }),
+  testIntegration: (id: string) => req<{ queued: boolean }>(`/integrations/${id}/test`, { method: "POST" }),
+  listDeliveries: () => req<DeliveryLog[]>("/integrations/deliveries/latest"),
+
+  // campaign CRM
+  crmBoard: (campaignId: string) => req<CrmBoard>(`/campaigns/${campaignId}/crm/board`),
+  saveCrmStages: (campaignId: string, stages: Partial<CrmStage>[]) =>
+    req<{ stages: CrmStage[] }>(`/campaigns/${campaignId}/crm/stages`, {
+      method: "PUT",
+      body: JSON.stringify(stages),
+    }),
+  moveLead: (campaignId: string, leadId: string, stage: string) =>
+    req<{ moved: boolean; stage: string }>(`/campaigns/${campaignId}/crm/move`, {
+      method: "POST",
+      body: JSON.stringify({ lead_id: leadId, stage }),
+    }),
+
 
   // WebSocket base: same-origin /api proxy when no explicit API URL is set.
   wsBase: () => {

@@ -1,0 +1,100 @@
+/* ============================================================
+   Platform pages: notifications, kanban CRM, integrations, audit
+   Kept separate from styles.css so each file stays focused.
+   ============================================================ */
+
+/* ── Notification bell (sidebar) ─────────────────────────── */
+.bell-wrap { position: relative; }
+.bell-btn { width: 100%; justify-content: flex-start; padding: 8px 10px; border-radius: 10px; }
+.bell-badge {
+  margin-left: auto;
+  background: var(--gradient);
+  color: #fff; font-size: 10.5px; font-weight: 750;
+  min-width: 18px; height: 18px; border-radius: 99px;
+  display: inline-grid; place-items: center; padding: 0 5px;
+  animation: pop 0.25s ease;
+}
+.bell-pop {
+  position: absolute; left: 0; bottom: calc(100% + 10px);
+  width: 340px; max-height: 420px; display: flex; flex-direction: column;
+  background: var(--card); border: 1px solid var(--border); border-radius: 14px;
+  box-shadow: 0 18px 50px rgba(10, 15, 40, 0.28); overflow: hidden; z-index: 60;
+}
+[data-theme="light"] .bell-pop { box-shadow: 0 18px 50px rgba(20, 30, 70, 0.18); }
+.bell-pop-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 12px; border-bottom: 1px solid var(--border); font-size: 13px;
+}
+.bell-pop-head .btn { font-size: 11px; }
+.bell-item {
+  display: flex; gap: 9px; align-items: flex-start; text-align: left;
+  padding: 9px 12px; border: none; border-bottom: 1px solid var(--border-soft);
+  background: transparent; color: var(--text); cursor: pointer; font-family: inherit;
+}
+.bell-item:hover { background: var(--card-hover); }
+.bell-viewall {
+  padding: 9px; border: none; background: var(--well); color: var(--accent-1);
+  font-weight: 650; font-size: 12.5px; cursor: pointer; font-family: inherit;
+}
+.bell-viewall:hover { color: var(--accent-2); }
+
+/* ── Notification feed page ──────────────────────────────── */
+.stack { display: flex; flex-direction: column; gap: 10px; }
+.notif { transition: opacity 0.2s; }
+.notif.unread { border-left: 3px solid var(--accent-1); }
+.notif.read { opacity: 0.82; }
+
+/* ── Kanban CRM ──────────────────────────────────────────── */
+.kanban {
+  display: flex; gap: 12px; overflow-x: auto; padding-bottom: 14px;
+  align-items: stretch;
+}
+.kanban-col {
+  flex: 0 0 252px; min-width: 252px;
+  background: var(--bg-soft);
+  border: 1px solid var(--border); border-radius: 14px;
+  padding: 8px 8px 10px;
+  transition: border-color 0.15s, background 0.15s;
+}
+.kanban-col.over { border-color: var(--accent-1); background: rgba(99, 102, 241, 0.07); }
+.kanban-col.add {
+  flex: 0 0 190px; min-width: 190px;
+  border-style: dashed; display: flex; align-items: flex-start; padding: 10px;
+  background: transparent;
+}
+.kanban-head {
+  display: flex; align-items: center; gap: 7px; padding: 6px 6px 10px;
+  border-top: 3px solid var(--border);
+}
+.stage-name {
+  flex: 1; min-width: 0; font-weight: 700; font-size: 13px;
+  background: transparent; border: 1px solid transparent; border-radius: 7px;
+  color: var(--text); font-family: inherit; padding: 3px 6px; outline: none;
+}
+.stage-name:hover, .stage-name:focus { border-color: var(--border); background: var(--card); }
+.kanban-head .count {
+  font-size: 11px; font-weight: 750; background: var(--well);
+  padding: 2px 8px; border-radius: 99px; color: var(--text-muted);
+}
+.kanban-head .del { opacity: 0.55; }
+.kanban-head .del:hover { opacity: 1; }
+.kanban-cards {
+  display: flex; flex-direction: column; gap: 8px;
+  min-height: 120px;
+}
+.kanban-card {
+  background: var(--card); border: 1px solid var(--border); border-radius: 11px;
+  padding: 10px 12px; font-size: 12.5px; cursor: grab;
+  box-shadow: 0 2px 6px rgba(10, 15, 40, 0.05);
+  transition: transform 0.12s, box-shadow 0.15s, border-color 0.12s;
+}
+.kanban-card:hover { transform: translateY(-2px); box-shadow: var(--shadow); border-color: var(--accent-1); }
+.kanban-card:active { cursor: grabbing; }
+.kanban-card .mono { font-family: "SF Mono", ui-monospace, Menlo, monospace; font-size: 11.5px; color: var(--text-muted); margin-top: 2px; }
+.kanban-empty {
+  border: 1px dashed var(--border); border-radius: 10px;
+  padding: 22px 8px; text-align: center; font-size: 11.5px; color: var(--text-faint);
+}
+
+/* ── Integrations ────────────────────────────────────────── */
+.muted-card { opacity: 0.72; }

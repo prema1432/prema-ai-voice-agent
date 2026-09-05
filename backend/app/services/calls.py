@@ -117,8 +117,9 @@ async def persist_call_result(
     )
 
     # Reflect outcome on the lead, if the call belongs to one.
+    lead_doc = None
     if pipeline_end_lead_id := getattr(pipeline, "lead_id", None):
-        await collection("leads").update_one(
+        lead_doc = await collection("leads").find_one_and_update(
             {"_id": oid(pipeline_end_lead_id)},
             {
                 "$set": {
@@ -128,7 +129,39 @@ async def persist_call_result(
                 },
                 "$inc": {"call_count": 1},
             },
+            return_document=True,
         )
+
+    # Domain events: audit + notifications + webhook fan-out (isolated).
+    try:
+        from app.events import audit, emit, notify
+
+        meta = {
+            "call_id": call_id,
+            "campaign_id": getattr(pipeline, "campaign_id", None),
+            "lead_id": getattr(pipeline, "lead_id", None),
+            "outcome": final_outcome,
+            "agent": pipeline.persona.name if getattr(pipeline, "persona", None) else None,
+            "lead_score": lead_score,
+            "duration_seconds": pipeline.summary_snapshot().get("duration_seconds"),
+        }
+        await audit("call.ended", entity_type="call", entity_id=call_id, meta=meta)
+        emit("call.ended", meta)
+
+        if final_outcome in ("interested", "callback_requested"):
+            name = (lead_doc or {}).get("name") or (lead_doc or {}).get("phone") or "lead"
+            await notify(
+                f"{'🔥' if final_outcome == 'interested' else '📅'} {final_outcome.replace('_', ' ').title()} lead",
+                f"{pipeline.persona.name} just finished a call — {name} is {final_outcome.replace('_', ' ')}.",
+                kind="call",
+                data=meta,
+            )
+        elif final_outcome == "dnd":
+            name = (lead_doc or {}).get("name") or (lead_doc or {}).get("phone") or "lead"
+            await notify("🚫 DND requested", f"{name} asked not to be called again.",
+                         kind="call", data=meta)
+    except Exception:  # noqa: BLE001 — events must never break call persistence
+        log.exception("event emission failed after call end")
 
 
 async def start_adhoc_call(

@@ -53,10 +53,32 @@ class CampaignRunner:
 
             lead = await self._claim_next_lead(self.campaign_id)
             if lead is None:
+                campaign_doc = await collection("campaigns").find_one(
+                    {"_id": oid(self.campaign_id)}, {"name": 1}
+                )
                 await collection("campaigns").update_one(
                     {"_id": oid(self.campaign_id)}, {"$set": {"status": "completed"}}
                 )
                 log.info("campaign %s: no more leads, completing", self.campaign_id)
+                # Domain event: mark completion + surface a notification.
+                try:
+                    from app.events import audit, emit, notify
+
+                    await audit("campaign.completed", entity_type="campaign",
+                                entity_id=self.campaign_id,
+                                meta={"name": (campaign_doc or {}).get("name")})
+                    await notify(
+                        "🏁 Campaign finished",
+                        f"'{campaign_doc.get('name') if campaign_doc else self.campaign_id}' "
+                        "ran through all its leads.",
+                        kind="campaign", data={"campaign_id": self.campaign_id},
+                    )
+                    emit("campaign.completed", {
+                        "campaign_id": self.campaign_id,
+                        "name": (campaign_doc or {}).get("name"),
+                    })
+                except Exception:  # noqa: BLE001
+                    log.exception("campaign.completed event failed")
                 break
 
             log.info("campaign %s: claimed lead %s (%s)",

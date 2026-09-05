@@ -6,7 +6,11 @@ export type Route =
   | { name: "llm" }
   | { name: "voicelab"; agentId?: string }
   | { name: "calls" }
-  | { name: "call-detail"; id: string };
+  | { name: "call-detail"; id: string }
+  | { name: "crm"; campaignId?: string }
+  | { name: "notifications" }
+  | { name: "integrations" }
+  | { name: "audit" };
 
 export function parseRoute(hash: string): Route {
   const h = hash.replace(/^#\/?/, "");
@@ -14,10 +18,14 @@ export function parseRoute(hash: string): Route {
   if (parts.length === 0) return { name: "dashboard" };
   if (parts[0] === "campaigns" && parts[1]) return { name: "campaign-detail", id: parts[1] };
   if (parts[0] === "calls" && parts[1]) return { name: "call-detail", id: parts[1] };
+  if (parts[0] === "voicelab") return { name: "voicelab", agentId: parts[1] };
   if (parts[0] === "campaigns") return { name: "campaigns" };
+  if (parts[0] === "crm") return { name: "crm", campaignId: parts[1] };
+  if (parts[0] === "notifications") return { name: "notifications" };
+  if (parts[0] === "integrations") return { name: "integrations" };
+  if (parts[0] === "audit") return { name: "audit" };
   if (parts[0] === "agents") return { name: "agents" };
   if (parts[0] === "llm") return { name: "llm" };
-  if (parts[0] === "voicelab") return { name: "voicelab", agentId: parts[1] };
   if (parts[0] === "calls") return { name: "calls" };
   return { name: "dashboard" };
 }

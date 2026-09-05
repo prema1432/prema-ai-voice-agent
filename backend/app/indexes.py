@@ -26,3 +26,15 @@ async def ensure_indexes(db: AsyncIOMotorDatabase) -> None:
 
     await db["llm_usage"].create_index([("ts", -1)])
     await db["llm_usage"].create_index([("model", 1), ("ts", -1)])
+
+    await db["audit_logs"].create_index([("ts", -1)])
+    await db["audit_logs"].create_index([("entity_type", 1), ("entity_id", 1)])
+    await db["audit_logs"].create_index([("action", 1), ("ts", -1)])
+
+    await db["notifications"].create_index([("read", 1), ("ts", -1)])
+
+    await db["integrations"].create_index("type")
+    await db["integrations"].create_index([("enabled", 1), ("events", 1)])
+
+    await db["delivery_logs"].create_index([("ts", -1)])
+    await db["delivery_logs"].create_index([("direction", 1), ("ts", -1)])

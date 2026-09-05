@@ -29,6 +29,17 @@ def _out(doc: dict) -> dict:
 @router.post("/bulk", status_code=201)
 async def bulk_add(campaign_id: str, body: LeadBulkIn) -> dict:
     """Bulk upsert leads for a campaign. Validates + DND-scrubs each number."""
+    from app.events import audit, emit, notify
+
+    # Default CRM stage = first stage of the campaign's pipeline (usually 'new').
+    campaign = await collection("campaigns").find_one(
+        {"_id": ObjectId(campaign_id)}, {"name": 1, "crm_stages": 1}
+    )
+    if not campaign:
+        raise HTTPException(404, "campaign not found")
+    stages = campaign.get("crm_stages") or []
+    default_stage = stages[0]["id"] if stages else "new"
+
     added, updated, invalid, dnd = 0, 0, [], 0
     ops = []
     for lead in body.leads:
@@ -57,7 +68,7 @@ async def bulk_add(campaign_id: str, body: LeadBulkIn) -> dict:
             result = await collection("leads").update_one(
                 op["filter"],
                 {"$set": op["set"], "$setOnInsert": {
-                    "status": "new", "call_count": 0,
+                    "status": "new", "call_count": 0, "stage": default_stage,
                     "created_at": datetime.now(timezone.utc),
                 }},
                 upsert=True,
@@ -69,11 +80,23 @@ async def bulk_add(campaign_id: str, body: LeadBulkIn) -> dict:
         else:
             try:
                 doc = {**op["set"], "status": "new", "call_count": 0,
+                       "stage": default_stage,
                        "created_at": datetime.now(timezone.utc)}
                 await collection("leads").insert_one(doc)
                 added += 1
             except Exception:
                 updated += 1
+
+    if added:
+        await audit("leads.added", entity_type="campaign", entity_id=campaign_id,
+                    meta={"name": campaign.get("name"), "added": added, "updated": updated})
+        await notify(
+            "👥 Leads added",
+            f"{added} new lead(s) added to '{campaign.get('name')}'"
+            + (f" · {updated} updated" if updated else ""),
+            kind="campaign", data={"campaign_id": campaign_id, "added": added},
+        )
+        emit("leads.added", {"campaign_id": campaign_id, "added": added})
 
     return {"added": added, "updated": updated, "invalid": invalid, "dnd_skipped": dnd}
 

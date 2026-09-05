@@ -9,7 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
 from app.db import close_db, connect_db
-from app.routers import agents, calls, campaigns, leads, llm
+from app.routers import agents, audit, calls, campaigns, crm, integrations, leads, llm, notifications
 
 logging.basicConfig(
     level=logging.INFO,
@@ -26,6 +26,10 @@ async def lifespan(app: FastAPI):
     # Seed the default agent directory (idempotent).
     from app.routers.agents import ensure_default_agents
     await ensure_default_agents()
+
+    # Outbound webhook/notification delivery worker (FIFO queue).
+    from app import events
+    events.start_delivery_worker()
 
     # Resume dialers for campaigns that were 'running' before a restart —
     # runners live in-process, so without this they silently die on redeploy.
@@ -68,10 +72,14 @@ app.add_middleware(
 )
 
 app.include_router(agents.router)
+app.include_router(audit.router)
 app.include_router(campaigns.router)
+app.include_router(crm.router)
+app.include_router(integrations.router)
 app.include_router(leads.router)
 app.include_router(calls.router)
 app.include_router(llm.router)
+app.include_router(notifications.router)
 
 
 @app.get("/health")

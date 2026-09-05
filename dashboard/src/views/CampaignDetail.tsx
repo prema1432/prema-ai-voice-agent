@@ -180,6 +180,7 @@ export default function CampaignDetail({ id }: { id: string }) {
               ⏸ Pause
             </Button>
           )}
+          <Button onClick={() => navigate(`crm/${id}`)}>🗂 CRM board</Button>
           <a className="btn" href={api.exportCsv(id)} download>
             ⬇ Export CSV
           </a>

@@ -147,6 +147,8 @@ async def agent_meta() -> dict:
 
 @router.post("")
 async def create_agent(persona: AgentPersona) -> dict:
+    from app.events import audit, emit
+
     doc = persona.model_dump()
     if not doc.get("avatar"):
         doc["avatar"] = _avatar(persona.name, persona.gender)
@@ -155,7 +157,11 @@ async def create_agent(persona: AgentPersona) -> dict:
         result = await collection("agent_configs").insert_one(doc)
     except DuplicateKeyError:
         raise HTTPException(409, f"An agent named '{persona.name}' already exists") from None
-    return {"id": str(result.inserted_id)}
+    agent_id = str(result.inserted_id)
+    await audit("agent.created", entity_type="agent", entity_id=agent_id,
+                meta={"name": persona.name, "specialization": persona.specialization})
+    emit("agent.created", {"agent_id": agent_id, "name": persona.name})
+    return {"id": agent_id}
 
 
 @router.get("")
@@ -197,7 +203,12 @@ async def update_agent(agent_id: str, persona: AgentPersona) -> dict:
 
 @router.delete("/{agent_id}")
 async def delete_agent(agent_id: str) -> dict:
+    from app.events import audit
     from app.services.calls import oid
 
-    await collection("agent_configs").delete_one({"_id": oid(agent_id)})
+    doc = await collection("agent_configs").find_one_and_delete({"_id": oid(agent_id)})
+    if not doc:
+        raise HTTPException(404, "agent not found")
+    await audit("agent.deleted", entity_type="agent", entity_id=agent_id,
+                meta={"name": doc.get("name")})
     return {"deleted": True}

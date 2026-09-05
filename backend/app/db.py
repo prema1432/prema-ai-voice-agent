@@ -25,6 +25,11 @@ COLLECTIONS = {
     "appointments": "appointments",
     "callbacks": "callbacks",
     "llm_usage": "llm_usage",
+    # Platform ops: audit trail, in-app notifications, integrations & delivery log
+    "audit_logs": "audit_logs",
+    "notifications": "notifications",
+    "integrations": "integrations",
+    "delivery_logs": "delivery_logs",
 }
 
 

@@ -204,7 +204,7 @@ export function LegendRow({ items }: { items: { name: string; value: string | nu
     <div className="legend-row">
       {items.map((it) => (
         <span className="legend-item" key={it.name}>
-          <i style={{ background: it.color ?? "var(--accent-1)" }} />
+          <i className={it.color ? undefined : "legend-color"} style={{ background: it.color }} />
           {it.name}
           <b>{it.value}</b>
         </span>

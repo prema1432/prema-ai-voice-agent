@@ -29,7 +29,7 @@ export function LiveCallPanel({ e }: { e: Engine }) {
       <div style={{ fontWeight: 750, fontSize: 17, display: "flex", justifyContent: "center", gap: 8, alignItems: "center" }}>
         {name}
         {speakingNow ? (
-          <span className="wave" style={{ color: "var(--green)" }}>
+          <span className="wave text-green">
             <i /><i /><i /><i />
           </span>
         ) : phase === "connected" ? (

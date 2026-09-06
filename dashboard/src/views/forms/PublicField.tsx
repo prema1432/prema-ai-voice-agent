@@ -236,7 +236,7 @@ export default function PublicField({
     <div>
       <label className="lbl">
         {field.label}
-        {field.required && <span style={{ color: "var(--red)" }}> *</span>}
+        {field.required && <span className="text-red"> *</span>}
       </label>
       {control}
       {field.help && <div style={{ fontSize: 11.5, color: "var(--text-muted)", marginTop: 4 }}>{field.help}</div>}

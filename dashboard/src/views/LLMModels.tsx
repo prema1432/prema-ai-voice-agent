@@ -286,13 +286,13 @@ export default function LLMModels() {
                   </div>
                   <div>
                     <div className="lbl">In</div>
-                    <b style={{ color: m.pricing.prompt === 0 ? "var(--green)" : undefined }}>
+                    <b className={m.pricing.prompt === 0 ? "text-green" : ""}>
                       {fmtPrice(m.pricing.prompt)}
                     </b>
                   </div>
                   <div>
                     <div className="lbl">Out</div>
-                    <b style={{ color: m.pricing.completion === 0 ? "var(--green)" : undefined }}>
+                    <b className={m.pricing.completion === 0 ? "text-green" : ""}>
                       {fmtPrice(m.pricing.completion)}
                     </b>
                   </div>

@@ -61,19 +61,19 @@ export default function Agents() {
       </div>
 
       <div className="stat-grid" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))" }}>
-        <Card style={{ borderTop: "3px solid var(--accent-1)" }}>
+        <Card className="border-top-accent1">
           <div className="value" style={{ fontSize: 26, fontWeight: 750 }}>{agents?.length ?? "…"}</div>
           <div className="sub" style={{ color: "var(--text-muted)", fontSize: 12 }}>Agents on the team</div>
         </Card>
-        <Card style={{ borderTop: "3px solid var(--green)" }}>
+        <Card className="border-top-green">
           <div className="value" style={{ fontSize: 26, fontWeight: 750 }}>{totalLeads}</div>
           <div className="sub" style={{ color: "var(--text-muted)", fontSize: 12 }}>Leads completed</div>
         </Card>
-        <Card style={{ borderTop: "3px solid #f59e0b" }}>
+        <Card className="border-top-amber">
           <div className="value" style={{ fontSize: 26, fontWeight: 750 }}>{avgRating ? avgRating.toFixed(1) : "—"}</div>
           <div className="sub" style={{ color: "var(--text-muted)", fontSize: 12 }}>Average rating</div>
         </Card>
-        <Card style={{ borderTop: "3px solid var(--accent-3)" }}>
+        <Card className="border-top-accent3">
           <div className="value" style={{ fontSize: 26, fontWeight: 750 }}>{specs.length}</div>
           <div className="sub" style={{ color: "var(--text-muted)", fontSize: 12 }}>Specializations</div>
         </Card>

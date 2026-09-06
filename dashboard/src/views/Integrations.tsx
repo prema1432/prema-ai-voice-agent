@@ -91,19 +91,19 @@ export default function Integrations() {
       {err && <div className="msg err">{err}</div>}
 
       <div className="stat-grid" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))" }}>
-        <Card style={{ borderTop: "3px solid var(--accent-1)" }}>
+        <Card className="border-top-accent1">
           <div className="value">{total}</div>
           <div className="sub">Total connections</div>
         </Card>
-        <Card style={{ borderTop: "3px solid var(--green)" }}>
+        <Card className="border-top-green">
           <div className="value">{enabled}</div>
           <div className="sub">Live / enabled</div>
         </Card>
-        <Card style={{ borderTop: "3px solid var(--accent-3)" }}>
+        <Card className="border-top-accent3">
           <div className="value">{types ? Object.keys(types).length : "…"}</div>
           <div className="sub">Catalog types</div>
         </Card>
-        <Card style={{ borderTop: "3px solid #f59e0b" }}>
+        <Card className="border-top-amber">
           <div className="value">{deliveries.length}</div>
           <div className="sub">Recent deliveries</div>
         </Card>

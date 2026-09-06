@@ -409,6 +409,26 @@ input[type="file"]::file-selector-button:hover { background: var(--card-hover); 
 .call-ring { border-radius: 50%; display: grid; place-items: center; background: rgba(16, 185, 129, 0.14); animation: rings 1.4s ease-out infinite; }
 .call-timer { font-family: "SF Mono", ui-monospace, monospace; font-size: 15px; font-variant-numeric: tabular-nums; }
 
+/* Color utility classes — use instead of inline style={{ color: "var(--x)" }} */
+.text-green { color: var(--green); }
+.text-amber { color: var(--amber); }
+.text-red { color: var(--red); }
+.text-blue { color: var(--blue); }
+.text-violet { color: var(--violet); }
+.text-muted { color: var(--text-muted); }
+.text-faint { color: var(--text-faint); }
+.text-accent { color: var(--accent-3); }
+
+.legend-color { background: var(--accent-1); }
+
+.border-top-green { border-top: 3px solid var(--green); }
+.border-top-amber { border-top: 3px solid var(--amber); }
+.border-top-red { border-top: 3px solid var(--red); }
+.border-top-blue { border-top: 3px solid var(--blue); }
+.border-top-violet { border-top: 3px solid var(--violet); }
+.border-top-accent1 { border-top: 3px solid var(--accent-1); }
+.border-top-accent3 { border-top: 3px solid var(--accent-3); }
+
 @media (max-width: 980px) {
   .app-shell { grid-template-columns: 1fr; }
   .side-toggle { display: none; }

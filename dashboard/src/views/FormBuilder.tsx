@@ -224,7 +224,7 @@ export default function FormBuilder({ id }: { id: string }) {
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ fontWeight: 600, fontSize: 13.5, display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
                           {fld.label}
-                          {fld.required && <span style={{ color: "var(--red)" }}>*</span>}
+                          {fld.required && <span className="text-red">*</span>}
                           {fld.computed && <Badge tone="violet">🧮 computed</Badge>}
                           {fld.show_when && <Badge tone="amber">if {fld.show_when.field}</Badge>}
                         </div>

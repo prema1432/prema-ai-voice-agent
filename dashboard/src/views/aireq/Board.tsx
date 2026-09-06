@@ -4,6 +4,7 @@ import {
   aiEvaluate, Candidate, EVAL_ICON, FALLOUT_ID, FALLOUT_NAME, HistoryEntry, JobReq, MODE_LABEL,
   StageEval, demoCandidates, nid,
 } from "./model";
+import { screenArrival } from "./screen";
 
 /** Visual animated pipeline flow — dynamically renders all stages as connected nodes. */
 function PipelineFlow({ job, onStageClick }: { job: JobReq; onStageClick?: (id: string) => void }) {
@@ -231,10 +232,11 @@ export default function Board({ job, onChange }: { job: JobReq; onChange: (j: Jo
     const applied = job.stages[0];
     const c: Candidate = {
       id: nid("cand"), name: form.name.trim(), email: form.email.trim(), phone: form.phone.trim(),
-      resume: form.resume.trim(), appliedAt: new Date().toISOString(), stageId: applied.id,
+      resume: form.resume.trim(), answers: {}, appliedAt: new Date().toISOString(), stageId: applied.id,
       match: null, scores: {}, evals: {}, history: [hist(applied.name, "entered", "Applied for this position")],
     };
-    onChange({ ...job, candidates: [c, ...job.candidates] });
+    // New applications are auto-validated stage by stage (AI stages only).
+    onChange(screenArrival({ ...job, candidates: [c, ...job.candidates] }, c.id));
     setForm({ name: "", email: "", phone: "", resume: "" });
     setAdding(false);
   }
@@ -357,6 +359,14 @@ export default function Board({ job, onChange }: { job: JobReq; onChange: (j: Jo
                             );
                           })}
                         </div>
+                        {job.applyFields.filter((f) => c.answers[f.id]).length > 0 && (
+                          <>
+                            <b>Application answers</b>
+                            {job.applyFields.filter((f) => c.answers[f.id]).map((f) => (
+                              <div key={f.id} className="jr-ans"><b>{f.label}:</b> {c.answers[f.id]}</div>
+                            ))}
+                          </>
+                        )}
                         {(() => {
                           const ev = c.pendingAI ?? c.evals[c.stageId]
                             ?? [...job.stages].reverse().map((st) => c.evals[st.id]).find(Boolean);

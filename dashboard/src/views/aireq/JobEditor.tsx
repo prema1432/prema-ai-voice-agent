@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Button, Card } from "../../components";
 import { JobReq, MODE_LABEL, newJob, WorkMode } from "./model";
+import ApplyFieldsEditor from "./ApplyFieldsEditor";
 import StageBuilder from "./StageBuilder";
 import FlowPlayground from "./FlowPlayground";
 
@@ -88,6 +89,7 @@ export default function JobEditor({
 
       {view === "form" ? (
         <>
+          <ApplyFieldsEditor job={draft} onChange={(applyFields) => set({ applyFields })} />
           <StageBuilder stages={draft.stages} onChange={(stages) => set({ stages })} />
         </>
       ) : (

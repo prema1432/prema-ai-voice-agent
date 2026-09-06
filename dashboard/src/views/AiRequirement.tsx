@@ -4,6 +4,7 @@ import { JobReq, MODE_LABEL, funnelStats, loadJobs, newJob, saveJobs } from "./a
 import JobEditor from "./aireq/JobEditor";
 import Board from "./aireq/Board";
 import "./aireq/aireq.css";
+import "./aireq/aireq-ui.css";
 import { JobPreviewCard } from "./aireq/PublicJob";
 
 type View = { kind: "list" } | { kind: "pipeline"; id: string } | { kind: "funnel"; id: string } | { kind: "preview"; id: string };

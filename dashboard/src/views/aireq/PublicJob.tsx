@@ -1,6 +1,11 @@
 import { useState } from "react";
 import { Button, Card } from "../../components";
-import { Candidate, JobReq, MODE_LABEL, loadJobs, nid, saveJobs } from "./model";
+import {
+  ApplyField, Candidate, JobReq, MODE_LABEL, loadJobs, nid, normalizeJob, saveJobs,
+} from "./model";
+import { outcomeFor, ScreenOutcome, screenArrival } from "./screen";
+import "./aireq.css";
+import "./aireq-ui.css";
 
 /** Candidate-facing job card: what an applicant sees before applying. */
 export function JobPreviewCard({ job }: { job: JobReq }) {
@@ -40,27 +45,61 @@ function BadgeInner({ text }: { text: string }) {
 }
 
 /**
- * Public apply page at /jobs/:id — candidate view with the job preview and
- * the application form. Submissions land in the job's Applied stage.
+ * Public apply page at /jobs/:id — renders the job's configured application
+ * fields (mandatory enforced), then auto-validates through the AI stages.
  */
 export default function PublicJob({ id }: { id: string }) {
-  const [job, setJob] = useState<JobReq | null>(() => loadJobs().find((j) => j.id === id) ?? null);
-  const [done, setDone] = useState<string | null>(null);
-  const [form, setForm] = useState({ name: "", email: "", phone: "", resume: "" });
+  const [job, setJob] = useState<JobReq | null>(() => {
+    const found = loadJobs().find((j) => j.id === id);
+    return found ? normalizeJob(found) : null;
+  });
+  const [answers, setAnswers] = useState<Record<string, string>>({});
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [done, setDone] = useState<{ name: string; outcome: ScreenOutcome } | null>(null);
+
+  const valueOf = (f: ApplyField) => answers[f.id] ?? "";
+
+  function setValue(f: ApplyField, v: string) {
+    setAnswers((a) => ({ ...a, [f.id]: v }));
+    if (errors[f.id]) setErrors((e) => ({ ...e, [f.id]: "" }));
+  }
 
   function apply() {
-    if (!job || !form.name.trim()) return;
+    if (!job) return;
+    const errs: Record<string, string> = {};
+    for (const f of job.applyFields) {
+      if (f.required && !valueOf(f).trim()) errs[f.id] = `${f.label} is required`;
+    }
+    if (Object.keys(errs).length) {
+      setErrors(errs);
+      return;
+    }
+    const bound = (key: "name" | "email" | "phone" | "resume") =>
+      job.applyFields.find((f) => f.key === key);
+    const ans = (f?: ApplyField) => (f ? valueOf(f).trim() : "");
+    const answersAll = Object.fromEntries(
+      job.applyFields.filter((f) => !f.key).map((f) => [f.id, valueOf(f).trim()]),
+    );
     const applied = job.stages[0];
     const cand: Candidate = {
-      id: nid("cand"), name: form.name.trim(), email: form.email.trim(), phone: form.phone.trim(),
-      resume: form.resume.trim(), appliedAt: new Date().toISOString(), stageId: applied.id,
-      match: null, scores: {}, evals: {}, pendingAI: undefined,
+      id: nid("cand"),
+      name: ans(bound("name")) || "Applicant",
+      email: ans(bound("email")),
+      phone: ans(bound("phone")),
+      resume: ans(bound("resume")),
+      answers: answersAll,
+      appliedAt: new Date().toISOString(),
+      stageId: applied.id,
+      match: null,
+      scores: {},
+      evals: {},
       history: [{ at: new Date().toISOString(), stage: applied.name, result: "entered", note: "Applied via job link" }],
     };
-    const updated = { ...job, candidates: [cand, ...job.candidates] };
+    const updated = screenArrival({ ...job, candidates: [cand, ...job.candidates] }, cand.id);
     saveJobs(loadJobs().map((j) => (j.id === updated.id ? updated : j)));
     setJob(updated);
-    setDone(form.name.trim());
+    const finalCand = updated.candidates.find((c) => c.id === cand.id) ?? cand;
+    setDone({ name: cand.name, outcome: outcomeFor(updated, finalCand) });
   }
 
   if (!job) {
@@ -70,6 +109,7 @@ export default function PublicJob({ id }: { id: string }) {
       </div>
     );
   }
+  const closed = job.status !== "published";
 
   return (
     <div className="jr-public">
@@ -77,26 +117,93 @@ export default function PublicJob({ id }: { id: string }) {
       <JobPreviewCard job={job} />
       <Card style={{ marginTop: 14 }}>
         {done ? (
-          <div style={{ textAlign: "center", padding: "26px 10px" }}>
-            <div style={{ fontSize: 34 }}>🎉</div>
-            <h3>Application submitted, {done}!</h3>
-            <p className="sub">You're in the pipeline at <b>{job.stages[0]?.name}</b>. Our team will review your profile and you may take AI-led assessments next.</p>
-          </div>
+          <OutcomePanel name={done.name} outcome={done.outcome} />
         ) : (
           <>
-            <div className="card-head"><h3>Apply for this position</h3><span className="chip">≈ 2 minutes</span></div>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 10 }}>
-              <input className="input" placeholder="Full name *" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
-              <input className="input" type="email" placeholder="Email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
-              <input className="input" placeholder="Phone" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
-              <textarea className="input" rows={6} style={{ gridColumn: "1 / -1" }} placeholder="Paste your resume — skills are matched against this role by AI screening" value={form.resume} onChange={(e) => setForm({ ...form, resume: e.target.value })} />
+            <div className="card-head">
+              <h3>Apply for this position</h3>
+              <span className="chip">
+                {job.applyFields.filter((f) => f.required).length} required · ≈ {Math.max(2, job.applyFields.length)} min
+              </span>
             </div>
-            <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
-              <Button variant="primary" onClick={apply} disabled={job.status !== "published"}>🚀 Submit application</Button>
+            {closed && (
+              <div className="jr-form-note warn">⛔ Applications are closed for this position.</div>
+            )}
+            <div className="jr-form-grid">
+              {job.applyFields.map((f) => (
+                <div key={f.id} className={`jr-field${f.type === "textarea" ? " full" : ""}${f.type === "date" ? " date" : ""}${f.type === "select" ? " full" : ""}`}>
+                  <label className="lbl">
+                    {f.label} {f.required && <span className="req-star" title="Mandatory">*</span>}
+                    {!f.required && <em className="opt-tag">optional</em>}
+                  </label>
+                  {f.type === "textarea" ? (
+                    <textarea
+                      className="input"
+                      rows={5}
+                      placeholder={f.placeholder}
+                      value={valueOf(f)}
+                      onChange={(e) => setValue(f, e.target.value)}
+                    />
+                  ) : f.type === "select" ? (
+                    <select className="input" value={valueOf(f)} onChange={(e) => setValue(f, e.target.value)}>
+                      <option value="">— select —</option>
+                      {(f.options ?? []).map((o) => <option key={o} value={o}>{o}</option>)}
+                    </select>
+                  ) : (
+                    <input
+                      className="input"
+                      type={f.type === "email" ? "email" : f.type === "number" ? "number" : f.type === "date" ? "date" : "text"}
+                      placeholder={f.placeholder}
+                      value={valueOf(f)}
+                      onChange={(e) => setValue(f, e.target.value)}
+                    />
+                  )}
+                  {errors[f.id] && <div className="jr-form-err">⚠️ {errors[f.id]}</div>}
+                  {!errors[f.id] && f.help && <div className="sub" style={{ fontSize: 11 }}>{f.help}</div>}
+                </div>
+              ))}
+            </div>
+            <div style={{ display: "flex", gap: 8, marginTop: 14, flexWrap: "wrap", alignItems: "center" }}>
+              <Button variant="primary" onClick={apply} disabled={closed}>🚀 Submit application</Button>
+              <span className="sub">AI auto-validates your application against each stage as it arrives.</span>
             </div>
           </>
         )}
       </Card>
+    </div>
+  );
+}
+
+/** Post-submit panel: where the application ended (or why it was not selected). */
+function OutcomePanel({ name, outcome }: { name: string; outcome: ScreenOutcome }) {
+  const failed = !outcome.landed;
+  return (
+    <div className={`jr-done${failed ? " failed" : ""}`}>
+      <div className="jr-done-ic">{failed ? "😔" : outcome.stageName === "Hired 🎉" ? "🏆" : "🎉"}</div>
+      <h3>
+        {failed
+          ? `Application not selected, ${name}`
+          : outcome.stageName === "Hired 🎉"
+            ? `Congratulations, ${name} — you're hired!`
+            : `Application submitted, ${name}!`}
+      </h3>
+      {failed ? (
+        <p className="sub">
+          Your application was reviewed at <b>{outcome.failedAt ?? "the first stage"}</b> and didn't move forward.
+          {outcome.reason ? (
+            <span className="jr-done-reason">
+              {outcome.reason.replace(/^Auto-validation failed:\s*/i, "").replace(/^.*?—\s*/, "")}
+            </span>
+          ) : ""}
+        </p>
+      ) : outcome.stageName === "Hired 🎉" ? (
+        <p className="sub">Every stage auto-validated successfully — welcome aboard! Our team will reach out with next steps.</p>
+      ) : (
+        <p className="sub">
+          You're now at the <b>{outcome.stageName}</b> stage
+          {outcome.awaitingHuman ? " — our team will review your profile for the next round." : " — the next AI stage will keep validating automatically."}
+        </p>
+      )}
     </div>
   );
 }

@@ -114,12 +114,52 @@ export interface HistoryEntry {
   note: string;
 }
 
+/** Field type a job asks candidates to fill in the public application. */
+export type ApplyFieldType = "text" | "email" | "phone" | "number" | "date" | "textarea" | "select";
+/** Optional binding to the candidate's built-in fields (everything else lands in `answers`). */
+export type ApplyFieldKey = "name" | "email" | "phone" | "resume";
+
+export interface ApplyField {
+  id: string;
+  label: string;
+  type: ApplyFieldType;
+  /** Mandatory fields block the submit until answered. */
+  required: boolean;
+  placeholder?: string;
+  /** Choices for type = "select". */
+  options?: string[];
+  help?: string;
+  key?: ApplyFieldKey;
+}
+
+export const APPLY_FIELD_TYPES: { value: ApplyFieldType; label: string }[] = [
+  { value: "text", label: "📝 Short text" },
+  { value: "email", label: "✉️ Email" },
+  { value: "phone", label: "📞 Phone" },
+  { value: "number", label: "🔢 Number" },
+  { value: "date", label: "📅 Date" },
+  { value: "textarea", label: "📄 Long text / resume" },
+  { value: "select", label: "🔽 Dropdown" },
+];
+
+/** Default application form every new job starts with (editable per job). */
+export function defaultApplyFields(): ApplyField[] {
+  return [
+    { id: nid("af"), label: "Full name", type: "text", required: true, placeholder: "Your full name", key: "name" },
+    { id: nid("af"), label: "Email", type: "email", required: true, placeholder: "you@mail.com", key: "email" },
+    { id: nid("af"), label: "Phone", type: "phone", required: false, placeholder: "+91 …", key: "phone" },
+    { id: nid("af"), label: "Paste your resume", type: "textarea", required: true, placeholder: "Experience, skills, education — matched against this role by AI screening", key: "resume" },
+  ];
+}
+
 export interface Candidate {
   id: string;
   name: string;
   email: string;
   phone: string;
   resume: string;
+  /** Answers to custom (non-bound) application fields — field id → value. */
+  answers: Record<string, string>;
   appliedAt: string;
   stageId: string;
   /** AI resume-vs-JD match % (set when analyzed). */
@@ -141,6 +181,8 @@ export interface JobReq {
   ctcMin: number;
   ctcMax: number;
   openings: number;
+  /** Application form fields candidates fill at the public link (with mandatory flags). */
+  applyFields: ApplyField[];
   /** ISO date — last date to apply. */
   lastDate: string;
   /** Application opening date. */
@@ -253,6 +295,7 @@ export function newJob(): JobReq {
     minExp: 0,
     status: "draft",
     createdAt: new Date().toISOString(),
+    applyFields: defaultApplyFields(),
     stages: defaultStages(),
     candidates: [],
   };
@@ -260,10 +303,19 @@ export function newJob(): JobReq {
 
 const KEY = "prema.hiring.jobs";
 
+/** Fill defaults for jobs saved before custom application fields existed. */
+export function normalizeJob(j: JobReq): JobReq {
+  return {
+    ...j,
+    applyFields: Array.isArray(j.applyFields) && j.applyFields.length ? j.applyFields : defaultApplyFields(),
+    candidates: (j.candidates ?? []).map((c) => ({ ...c, answers: (c as Candidate).answers ?? {} })),
+  };
+}
+
 export function loadJobs(): JobReq[] {
   try {
     const raw = JSON.parse(localStorage.getItem(KEY) ?? "[]") as JobReq[];
-    return Array.isArray(raw) ? raw : [];
+    return (Array.isArray(raw) ? raw : []).map(normalizeJob);
   } catch {
     return [];
   }
@@ -377,6 +429,7 @@ export function demoCandidates(job: JobReq): Candidate[] {
       email: d.email,
       phone: d.phone,
       resume,
+      answers: {},
       appliedAt: new Date(Date.now() - (i + 1) * 86400000).toISOString(),
       stageId: applied.id,
       match: score,

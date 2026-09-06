@@ -18,7 +18,9 @@ export type Route =
   | { name: "form-builder"; id: string }
   | { name: "form-submissions"; id: string }
   | { name: "form-public"; slug: string }
+  | { name: "job-public"; id: string }
   | { name: "ai-requirement" }
+  | { name: "stage-templates" }
   | { name: "invoices" }
   | { name: "widgets" }
   | { name: "ai-chat" }
@@ -30,6 +32,7 @@ export function parseRoute(path: string): Route {
   let parts = clean.split("/").filter(Boolean);
   if (parts.length === 0) return { name: "landing" };
   if (parts[0] === "f" && parts[1]) return { name: "form-public", slug: parts[1] };
+  if (parts[0] === "jobs" && parts[1]) return { name: "job-public", id: parts[1] };
   // The dashboard app lives under /app/** — clean history-API URLs, no "#".
   if (parts[0] === "app") parts = parts.slice(1);
   if (parts.length === 0) return { name: "dashboard" };
@@ -54,6 +57,7 @@ export function parseRoute(path: string): Route {
   if (parts[0] === "forms" && parts[1]) return { name: "form-builder", id: parts[1] };
   if (parts[0] === "forms") return { name: "forms" };
   if (parts[0] === "ai-requirement") return { name: "ai-requirement" };
+  if (parts[0] === "stage-templates") return { name: "stage-templates" };
   if (parts[0] === "invoices") return { name: "invoices" };
   if (parts[0] === "widgets") return { name: "widgets" };
   if (parts[0] === "ai-chat") return { name: "ai-chat" };

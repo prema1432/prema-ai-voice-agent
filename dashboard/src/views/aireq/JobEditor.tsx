@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { Button, Card } from "../../components";
-import { defaultStages, JobReq, MODE_LABEL, newJob, Stage, WorkMode } from "./model";
+import { JobReq, MODE_LABEL, newJob, WorkMode } from "./model";
+import StageBuilder from "./StageBuilder";
+import FlowPlayground from "./FlowPlayground";
 
 /** Job Description editor + pipeline stage builder with pass-criteria gates. */
 export default function JobEditor({
@@ -14,29 +16,8 @@ export default function JobEditor({
 }) {
   const [draft, setDraft] = useState<JobReq>(job.id && job.title ? job : newJob());
   const [skillsText, setSkillsText] = useState(job.skills.join(", "));
+  const [view, setView] = useState<"form" | "pipeline">("pipeline");
   const set = (patch: Partial<JobReq>) => setDraft({ ...draft, ...patch });
-
-  const setStage = (id: string, patch: Partial<Stage>) =>
-    set({ stages: draft.stages.map((s) => (s.id === id ? { ...s, ...patch } : s)) });
-
-  const moveStage = (idx: number, dir: -1 | 1) => {
-    const next = [...draft.stages];
-    const j = idx + dir;
-    if (j < 1 || j >= next.length - 1) return; // Applied stays first, Hired stays last
-    [next[idx], next[j]] = [next[j], next[idx]];
-    set({ stages: next });
-  };
-
-  const addStage = (afterIdx: number) => {
-    const next = [...draft.stages];
-    next.splice(afterIdx + 1, 0, { id: `st_${Date.now().toString(36)}`, name: "New Round", criteria: 60 });
-    set({ stages: next });
-  };
-
-  const removeStage = (idx: number) => {
-    if (idx === 0 || idx === draft.stages.length - 1) return; // Applied / Hired fixed
-    set({ stages: draft.stages.filter((_, i) => i !== idx) });
-  };
 
   function save() {
     if (!draft.title.trim()) return;
@@ -100,27 +81,21 @@ export default function JobEditor({
           <input className="input" value={skillsText} onChange={(e) => setSkillsText(e.target.value)} placeholder="React, TypeScript, Node.js, REST APIs" />
         </div>
       </div>
-      <div className="lbl" style={{ marginTop: 18 }}>Pipeline stages — criteria is the % needed to pass that stage</div>
-      <div className="stack" style={{ marginTop: 8 }}>
-        {draft.stages.map((s, i) => (
-          <div key={s.id} className="jr-stage-row">
-            <span className="jr-stage-idx">{i + 1}</span>
-            <input className="input" value={s.name} onChange={(e) => setStage(s.id, { name: e.target.value })} disabled={i === 0 || i === draft.stages.length - 1} />
-            <div className="jr-crit">
-              <input className="input" type="number" min={0} max={100} value={s.criteria} onChange={(e) => setStage(s.id, { criteria: Math.max(0, Math.min(100, Number(e.target.value))) })} />
-              <span>% pass</span>
-            </div>
-            <button className="btn ghost sm" title="Move up" onClick={() => moveStage(i, -1)} disabled={i <= 1}>↑</button>
-            <button className="btn ghost sm" title="Move down" onClick={() => moveStage(i, 1)} disabled={i >= draft.stages.length - 2}>↓</button>
-            <button className="btn ghost sm" title="Add stage after" onClick={() => addStage(i)}>＋</button>
-            <button className="btn ghost sm danger" title="Remove" onClick={() => removeStage(i)} disabled={i === 0 || i === draft.stages.length - 1}>🗑</button>
-          </div>
-        ))}
+      <div className="view-toggle" style={{ marginBottom: 14 }}>
+        <button className={`view-tgl-btn${view === "form" ? " on" : ""}`} onClick={() => setView("form")}>📋 Job details</button>
+        <button className={`view-tgl-btn${view === "pipeline" ? " on" : ""}`} onClick={() => setView("pipeline")}>🎨 Flow builder</button>
       </div>
+
+      {view === "form" ? (
+        <>
+          <StageBuilder stages={draft.stages} onChange={(stages) => set({ stages })} />
+        </>
+      ) : (
+        <FlowPlayground job={draft} onChange={setDraft} />
+      )}
 
       <div style={{ display: "flex", gap: 8, marginTop: 14, flexWrap: "wrap" }}>
         <Button variant="primary" onClick={save}>💾 Save job</Button>
-        <Button onClick={() => set({ stages: defaultStages() })}>↺ Reset stage template</Button>
         <Button onClick={onCancel}>Cancel</Button>
       </div>
     </Card>

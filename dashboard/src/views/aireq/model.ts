@@ -6,12 +6,105 @@
    ============================================================ */
 
 export type WorkMode = "remote" | "hybrid" | "onsite";
+/** Who evaluates this stage: AI, a human interviewer, or AI recommending + human deciding. */
+export type EvalType = "ai" | "human" | "ai_human";
+
+export const EVAL_LABEL: Record<EvalType, string> = {
+  ai: "🤖 AI",
+  human: "🧑 Human",
+  ai_human: "🤝 AI + Human",
+};
+
+export const EVAL_COLOR: Record<EvalType, string> = {
+  ai: "var(--accent-1, #6366f1)",
+  human: "var(--green, #10b981)",
+  ai_human: "var(--amber, #f59e0b)",
+};
+
+export const EVAL_DESC: Record<EvalType, string> = {
+  ai: "AI evaluates automatically",
+  human: "Human interviewer decides",
+  ai_human: "AI recommends, human decides",
+};
+
+export const EVAL_ICON: Record<EvalType, string> = {
+  ai: "🤖",
+  human: "🧑",
+  ai_human: "🤝",
+};
+
+export interface StagePreset {
+  name: string;
+  icon: string;
+  evalType: EvalType;
+  criteria: number;
+  difficulty: Difficulty;
+}
+
+/** Preset stage suggestions shown in the dropdown. Users can still type a custom name. */
+export const STAGE_PRESETS: StagePreset[] = [
+  { name: "Applied", icon: "📝", evalType: "ai", criteria: 0, difficulty: "easy" },
+  { name: "Resume Screening", icon: "📄", evalType: "ai", criteria: 70, difficulty: "medium" },
+  { name: "Aptitude Round", icon: "🧠", evalType: "ai", criteria: 60, difficulty: "medium" },
+  { name: "Coding MCQ", icon: "💻", evalType: "ai", criteria: 65, difficulty: "hard" },
+  { name: "Coding Answer", icon: "⌨️", evalType: "ai", criteria: 70, difficulty: "hard" },
+  { name: "Live Coding / QA", icon: "🎤", evalType: "ai_human", criteria: 75, difficulty: "hard" },
+  { name: "Technical Interview", icon: "🛠", evalType: "human", criteria: 75, difficulty: "hard" },
+  { name: "System Design", icon: "🏗", evalType: "human", criteria: 70, difficulty: "extreme" },
+  { name: "Case Study", icon: "📊", evalType: "ai_human", criteria: 65, difficulty: "medium" },
+  { name: "Product Sense", icon: "💡", evalType: "human", criteria: 70, difficulty: "medium" },
+  { name: "Role Play", icon: "🎭", evalType: "ai_human", criteria: 70, difficulty: "medium" },
+  { name: "HR Interview", icon: "🤝", evalType: "human", criteria: 70, difficulty: "easy" },
+  { name: "Leadership Round", icon: "🌟", evalType: "human", criteria: 70, difficulty: "hard" },
+  { name: "Final Interview", icon: "🏆", evalType: "human", criteria: 75, difficulty: "extreme" },
+  { name: "Hired", icon: "🎉", evalType: "human", criteria: 100, difficulty: "easy" },
+];
+
+export type Difficulty = "easy" | "medium" | "hard" | "extreme";
+
+export const DIFFICULTY_CONFIG: Record<Difficulty, { label: string; icon: string; color: string; weight: number }> = {
+  easy: { label: "Easy", icon: "🟢", color: "#10b981", weight: 1 },
+  medium: { label: "Medium", icon: "🟡", color: "#f59e0b", weight: 1.2 },
+  hard: { label: "Hard", icon: "🟠", color: "#f97316", weight: 1.5 },
+  extreme: { label: "Extreme Hard", icon: "🔴", color: "#ef4444", weight: 2 },
+};
+
+export interface MailConfig {
+  currentStage: { subject: string; body: string };
+  nextStage: { subject: string; body: string };
+}
+
+export const DEFAULT_MAIL: MailConfig = {
+  currentStage: { subject: "Update on your application: {{stage}}", body: "Hi {{name}},\n\nYou are now at the {{stage}} stage for {{job}}.\n\nNext: {{nextStage}}\n\n— Prema AI" },
+  nextStage: { subject: "Congratulations! Moving to {{nextStage}}", body: "Hi {{name}},\n\nYou passed {{stage}} ({{score}}%). Moving to {{nextStage}}.\n\n— Prema AI" },
+};
 
 export interface Stage {
   id: string;
   name: string;
-  /** Pass % required to leave this stage and move to the next one. */
+  icon: string;
   criteria: number;
+  evalType: EvalType;
+  failLabel?: string;
+  difficulty: Difficulty;
+  mail: MailConfig;
+}
+
+/** Rich AI/human evaluation attached to a candidate per stage. */
+export interface StageEval {
+  at: string;
+  by: EvalType;
+  score: number;
+  skillsMatched: number;
+  skillsTotal: number;
+  /** Experience vs requirement, %. */
+  experience: number;
+  /** Education vs requirement, %. */
+  education: number;
+  missing: string[];
+  strengths: string[];
+  concerns: string[];
+  recommendation: string;
 }
 
 export interface HistoryEntry {
@@ -31,8 +124,12 @@ export interface Candidate {
   stageId: string;
   /** AI resume-vs-JD match % (set when analyzed). */
   match: number | null;
-  /** stageId → score achieved in that stage. */
+  /** stageId → score achieved in that stage (mirror of evals, for quick gating). */
   scores: Record<string, number>;
+  /** stageId → full evaluation (AI or human) produced at that stage. */
+  evals: Record<string, StageEval>;
+  /** For ai_human stages: AI evaluation waiting for human confirmation. */
+  pendingAI?: StageEval;
   history: HistoryEntry[];
 }
 
@@ -46,12 +143,58 @@ export interface JobReq {
   openings: number;
   /** ISO date — last date to apply. */
   lastDate: string;
+  /** Application opening date. */
+  startDate: string;
+  location: string;
+  education: string;
+  employmentType: "full_time" | "part_time" | "contract" | "internship";
+  additionalReq: string;
   skills: string[];
   minExp: number;
   status: "draft" | "published" | "closed";
   createdAt: string;
   stages: Stage[];
   candidates: Candidate[];
+}
+
+/** A reusable stage pipeline template — create once, apply to any job. */
+export interface StageTemplate {
+  id: string;
+  name: string;
+  icon: string;
+  description: string;
+  stages: Stage[];
+  createdAt: string;
+}
+
+const TEMPLATE_KEY = "prema.hiring.stageTemplates";
+
+export function loadTemplates(): StageTemplate[] {
+  try {
+    const raw = JSON.parse(localStorage.getItem(TEMPLATE_KEY) ?? "[]") as StageTemplate[];
+    return Array.isArray(raw) ? raw : [];
+  } catch {
+    return [];
+  }
+}
+
+export function saveTemplates(templates: StageTemplate[]) {
+  try {
+    localStorage.setItem(TEMPLATE_KEY, JSON.stringify(templates));
+  } catch {
+    /* ignore */
+  }
+}
+
+export function newTemplate(): StageTemplate {
+  return {
+    id: nid("tmpl"),
+    name: "",
+    icon: "📋",
+    description: "",
+    stages: defaultStages(),
+    createdAt: new Date().toISOString(),
+  };
 }
 
 /** Shared id for the "Not Qualified" fallout lane. */
@@ -69,19 +212,27 @@ export const MODE_LABEL: Record<WorkMode, string> = {
 
 /** Default stage template — order matters; "Hired" must be last. */
 export function defaultStages(): Stage[] {
-  const mk = (name: string, criteria: number): Stage => ({ id: nid("st"), name, criteria });
+  const mk = (name: string, icon: string, criteria: number, evalType: EvalType, difficulty: Difficulty, failLabel?: string): Stage => ({
+    id: nid("st"), name, icon, criteria, evalType, difficulty, failLabel,
+    mail: { ...DEFAULT_MAIL },
+  });
   return [
-    mk("Applied", 0),
-    mk("Resume Screening", 70),
-    mk("Aptitude Round", 60),
-    mk("Coding MCQ", 65),
-    mk("Coding Assignment", 70),
-    mk("Live Q&A (AI)", 75),
-    mk("Face-to-Face Panel", 75),
-  mk("HR Round", 70),
-  mk("Hired", 100),
+    mk("Applied", "📥", 0, "ai", "easy", "Not Eligible"),
+    mk("Resume Screening", "📄", 70, "ai", "medium", "Resume Rejected"),
+    mk("Aptitude Round", "🧠", 70, "ai", "medium", "Aptitude Failed"),
+    mk("Coding MCQ", "💻", 70, "ai", "hard", "Coding MCQ Failed"),
+    mk("Coding Assignment", "⌨️", 70, "ai", "hard", "Coding Failed"),
+    mk("Live Q&A", "🎤", 70, "ai_human", "hard", "Live QA Failed"),
+    mk("HR Interview", "🤝", 70, "human", "easy", "HR Rejected"),
+    mk("Technical Interview", "🛠", 70, "human", "hard", "Technical Rejected"),
+    mk("Final Interview", "🏁", 70, "human", "extreme", "Final Rejected"),
+    mk("Hired", "🎉", 100, "human", "easy"),
   ];
 }
+
+export const EMPLOYMENT_LABEL: Record<JobReq["employmentType"], string> = {
+  full_time: "Full-time", part_time: "Part-time", contract: "Contract", internship: "Internship",
+};
 
 export function newJob(): JobReq {
   return {
@@ -93,6 +244,11 @@ export function newJob(): JobReq {
     ctcMax: 0,
     openings: 1,
     lastDate: "",
+    startDate: "",
+    location: "",
+    education: "",
+    employmentType: "full_time",
+    additionalReq: "",
     skills: [],
     minExp: 0,
     status: "draft",
@@ -147,6 +303,57 @@ export function analyzeResume(
   return { score: Math.max(5, Math.min(98, score)), matched, missing };
 }
 
+/** Stable 0-99 hash so demo/simulated scores never flicker between renders. */
+function hashPct(s: string): number {
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
+  return h % 100;
+}
+
+/**
+ * Full AI evaluation for a candidate at a stage — sub-scores, strengths,
+ * concerns and a recommendation. Resume-based for the first two stages;
+ * later rounds add deterministic per-stage variance around the resume base.
+ */
+export function aiEvaluate(job: JobReq, stage: Stage, cand: Candidate): StageEval {
+  const { score: base, matched, missing } = analyzeResume(job, cand.resume);
+  const idx = job.stages.findIndex((s) => s.id === stage.id);
+  const variance = idx <= 1 ? 0 : (hashPct(cand.id + stage.id) % 25) - 12;
+  const score = Math.max(5, Math.min(98, base + variance));
+  const years = /(\d+)\+?\s*(years|yrs)/i.exec(cand.resume);
+  const expYears = years ? Number(years[1]) : 0;
+  const experience = Math.min(100, Math.round((expYears / Math.max(1, job.minExp || 1)) * 100));
+  const education = /b\.?tech|b\.?e\b|m\.?tech|mca|bca|bachelor|master|degree/i.test(cand.resume) ? 100 : 60;
+  const next = job.stages[idx + 1];
+  const pass = score >= stage.criteria;
+  const strengths: string[] = [];
+  if (matched.length) strengths.push(`Strong in ${matched.slice(0, 3).join(", ")}`);
+  if (experience >= 100) strengths.push(`${expYears} yrs meets the ${job.minExp} yrs bar`);
+  if (education === 100) strengths.push("Relevant degree");
+  const concerns: string[] = [];
+  if (missing.length) concerns.push(`Missing skills: ${missing.join(", ")}`);
+  if (experience < 100) concerns.push(`Experience ${expYears} yrs below ${job.minExp} yrs requirement`);
+  if (!pass) concerns.push(`Overall ${score}% is under the ${stage.criteria}% gate`);
+  const failName = stage.failLabel ?? `${stage.name} Failed`;
+  return {
+    at: new Date().toISOString(),
+    by: stage.evalType === "human" ? "human" : "ai",
+    score,
+    skillsMatched: matched.length,
+    skillsTotal: matched.length + missing.length,
+    experience,
+    education,
+    missing,
+    strengths: strengths.length ? strengths : ["Application complete"],
+    concerns,
+    recommendation: pass
+      ? next && next.id !== job.stages[job.stages.length - 1].id
+        ? `Move to ${next.name}`
+        : "Recommend for hire 🎉"
+      : `Do not advance — ${score}% < ${stage.criteria}% (${failName})`,
+  };
+}
+
 const DEMO: { name: string; email: string; phone: string; years: number; extra: string }[] = [
   { name: "Aarav Sharma", email: "aarav@mail.com", phone: "91 90000 11111", years: 4, extra: "B.Tech CSE. Led React and Node services in production." },
   { name: "Diya Patel", email: "diya@mail.com", phone: "91 90000 22222", years: 2, extra: "B.E. Information Technology. Built REST APIs and dashboards." },
@@ -174,12 +381,14 @@ export function demoCandidates(job: JobReq): Candidate[] {
       stageId: applied.id,
       match: score,
       scores: {},
+      evals: {},
       history: [{ at: new Date(Date.now() - (i + 1) * 86400000).toISOString(), stage: applied.name, result: "entered", note: "Applied via job link" }],
     };
     // Simulate the first two past AI screening with different outcomes.
     if (i < 2) {
       const crit = screening.criteria;
       c.scores[applied.id] = score;
+      c.evals[applied.id] = aiEvaluate(job, screening, c);
       if (score >= crit) {
         c.stageId = screening.id;
         c.history.push({ at: new Date().toISOString(), stage: applied.name, result: "passed", note: `AI match ${score}% ≥ ${crit}%` });

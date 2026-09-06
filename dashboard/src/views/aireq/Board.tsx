@@ -1,9 +1,62 @@
 import { useState } from "react";
 import { Badge, Button, Card } from "../../components";
 import {
-  analyzeResume, Candidate, FALLOUT_ID, FALLOUT_NAME, HistoryEntry, JobReq, MODE_LABEL,
-  demoCandidates, nid,
+  aiEvaluate, Candidate, EVAL_ICON, FALLOUT_ID, FALLOUT_NAME, HistoryEntry, JobReq, MODE_LABEL,
+  StageEval, demoCandidates, nid,
 } from "./model";
+
+/** Visual animated pipeline flow — dynamically renders all stages as connected nodes. */
+function PipelineFlow({ job, onStageClick }: { job: JobReq; onStageClick?: (id: string) => void }) {
+  const [hovered, setHovered] = useState<string | null>(null);
+
+  const countAt = (id: string) => job.candidates.filter((c) => c.stageId === id).length;
+  const last = job.stages[job.stages.length - 1];
+  const hired = last ? countAt(last.id) : 0;
+  const total = job.candidates.length;
+
+  return (
+    <div className="jr-flow">
+      <div className="jr-flow-track">
+        {job.stages.map((s, i) => {
+          const count = countAt(s.id);
+          const pct = total > 0 ? Math.round((count / total) * 100) : 0;
+          const isHovered = hovered === s.id;
+          const isLast = s.id === last?.id;
+          return (
+            <div key={s.id} className="jr-flow-node-wrap">
+              <button
+                className={`jr-flow-node${isHovered ? " hover" : ""}${isLast ? " hired" : ""}`}
+                onMouseEnter={() => setHovered(s.id)}
+                onMouseLeave={() => setHovered(null)}
+                onClick={() => onStageClick?.(s.id)}
+                style={{ animationDelay: `${i * 60}ms` }}
+              >
+                <span className="jr-flow-ic">{EVAL_ICON[s.evalType]}</span>
+                <span className="jr-flow-name">{s.name}</span>
+                <span className="jr-flow-count">{count}</span>
+                {s.criteria > 0 && !isLast && (
+                  <span className="jr-flow-gate">≥{s.criteria}%</span>
+                )}
+                <span className="jr-flow-bar"><span style={{ width: `${pct}%` }} /></span>
+              </button>
+              {i < job.stages.length - 1 && (
+                <div className="jr-flow-arr">
+                  <span className="jr-flow-arr-line" />
+                  <span className="jr-flow-arr-head">▶</span>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+      <div className="jr-flow-summary">
+        <span>👥 {total} applicant{total !== 1 ? "s" : ""}</span>
+        <span>🎯 {hired}/{job.openings} hired</span>
+        <span>📊 {job.stages.length} stages</span>
+      </div>
+    </div>
+  );
+}
 
 type Form = { name: string; email: string; phone: string; resume: string };
 
@@ -25,32 +78,77 @@ export default function Board({ job, onChange }: { job: JobReq; onChange: (j: Jo
     onChange({ ...job, candidates: job.candidates.map((c) => (c.id === candId ? fn(c) : c)) });
   }
 
-  /** AI screen a candidate sitting in Applied: advance or fall out by criteria. */
-  function analyze(candId: string) {
+  /** AI evaluate the candidate at their current stage (AI / AI+Human stages). */
+  function runAI(candId: string) {
     const c = job.candidates.find((x) => x.id === candId);
-    const applied = job.stages[0];
-    const screening = job.stages[1];
-    if (!c || !screening) return;
-    const { score, matched, missing } = analyzeResume(job, c.resume);
-    const note = `AI match ${score}% (skills: ${matched.join(", ") || "none"}${missing.length ? ` · missing: ${missing.join(", ")}` : ""})`;
-    const pass = score >= screening.criteria;
+    const idx = c ? stageIdx(c.stageId) : -1;
+    const stage = idx >= 0 ? job.stages[idx] : undefined;
+    if (!c || !stage || stage.evalType === "human") return;
+    const ev = aiEvaluate(job, stage, c);
+    const failName = stage.failLabel ?? `${stage.name} Failed`;
+    if (stage.evalType === "ai_human") {
+      // AI recommends; a human confirms or overrides before any movement.
+      applyToAll(
+        (x) => ({
+          ...x,
+          pendingAI: ev,
+          history: [...x.history, hist(stage.name, "note", `🤖 AI recommends ${ev.score}% — ${ev.recommendation}`)],
+        }),
+        candId,
+      );
+      return;
+    }
+    const next = job.stages[idx + 1];
+    const pass = ev.score >= stage.criteria;
+    const isHire = pass && next && next.id === job.stages[job.stages.length - 1].id;
     applyToAll(
       (x) => ({
         ...x,
-        match: score,
-        scores: { ...x.scores, [applied.id]: score },
-        stageId: pass ? screening.id : FALLOUT_ID,
+        match: x.match ?? (idx === 0 ? ev.score : x.match),
+        scores: { ...x.scores, [stage.id]: ev.score },
+        evals: { ...x.evals, [stage.id]: ev },
+        stageId: pass ? next.id : FALLOUT_ID,
         history: [
           ...x.history,
-          hist(applied.name, "note", note),
-          hist(applied.name, pass ? "passed" : "fallout", pass ? `${score}% ≥ ${screening.criteria}% → ${screening.name}` : `${score}% < ${screening.criteria}% required`),
+          hist(stage.name, pass ? (isHire ? "hired" : "passed") : "fallout",
+            pass ? `AI ${ev.score}% ≥ ${stage.criteria}% → ${isHire ? "HIRED 🎉" : next.name}` : `AI ${ev.score}% < ${stage.criteria}% — ${failName}`),
         ],
       }),
       candId,
     );
   }
 
-  /** Record a score for the candidate's current stage → auto pass/fallout. */
+  /** Human decision on an AI+Human stage: accept the AI recommendation or override it. */
+  function confirmAI(candId: string, accept: boolean) {
+    const c = job.candidates.find((x) => x.id === candId);
+    const idx = c ? stageIdx(c.stageId) : -1;
+    const stage = idx >= 0 ? job.stages[idx] : undefined;
+    if (!c || !stage || !c.pendingAI) return;
+    const ev = c.pendingAI;
+    const next = job.stages[idx + 1];
+    const pass = accept && ev.score >= stage.criteria;
+    const isHire = pass && next && next.id === job.stages[job.stages.length - 1].id;
+    const failName = stage.failLabel ?? `${stage.name} Failed`;
+    applyToAll(
+      (x) => ({
+        ...x,
+        pendingAI: undefined,
+        scores: { ...x.scores, [stage.id]: ev.score },
+        evals: { ...x.evals, [stage.id]: { ...ev, by: "ai_human" } },
+        stageId: pass ? next.id : FALLOUT_ID,
+        history: [
+          ...x.history,
+          hist(stage.name, pass ? (isHire ? "hired" : "passed") : "fallout",
+            pass
+              ? `Human confirmed AI ${ev.score}% → ${isHire ? "HIRED 🎉" : next.name}`
+              : accept ? `AI ${ev.score}% < ${stage.criteria}% — ${failName}` : `Human overrode AI recommendation — ${failName}`),
+        ],
+      }),
+      candId,
+    );
+  }
+
+  /** Record a human score for the candidate's current stage → auto pass/fallout. */
   function submitScore(candId: string, raw: string) {
     const c = job.candidates.find((x) => x.id === candId);
     const idx = c ? stageIdx(c.stageId) : -1;
@@ -60,15 +158,25 @@ export default function Board({ job, onChange }: { job: JobReq; onChange: (j: Jo
     const next = job.stages[idx + 1];
     const pass = value >= stage.criteria;
     const isHire = pass && next && next.id === job.stages[job.stages.length - 1].id;
+    const failName = stage.failLabel ?? `${stage.name} Failed`;
+    const ev: StageEval = {
+      at: new Date().toISOString(), by: "human", score: value,
+      skillsMatched: 0, skillsTotal: 0, experience: 0, education: 0,
+      missing: [], strengths: [`Human interview score ${value}%`],
+      concerns: pass ? [] : [`Below the ${stage.criteria}% gate`],
+      recommendation: pass ? `Move to ${next?.name ?? "next stage"}` : `Do not advance — ${failName}`,
+    };
     applyToAll(
       (x) => ({
         ...x,
         scores: { ...x.scores, [stage.id]: value },
+        evals: { ...x.evals, [stage.id]: ev },
+        pendingAI: undefined,
         stageId: pass ? next.id : FALLOUT_ID,
         history: [
           ...x.history,
           hist(stage.name, pass ? (isHire ? "hired" : "passed") : "fallout",
-            pass ? `Scored ${value}% ≥ ${stage.criteria}% → ${isHire ? "HIRED 🎉" : next.name}` : `Scored ${value}% — needed ${stage.criteria}%`),
+            pass ? `Human scored ${value}% ≥ ${stage.criteria}% → ${isHire ? "HIRED 🎉" : next.name}` : `Human scored ${value}% — ${failName}`),
         ],
       }),
       candId,
@@ -121,7 +229,7 @@ export default function Board({ job, onChange }: { job: JobReq; onChange: (j: Jo
     const c: Candidate = {
       id: nid("cand"), name: form.name.trim(), email: form.email.trim(), phone: form.phone.trim(),
       resume: form.resume.trim(), appliedAt: new Date().toISOString(), stageId: applied.id,
-      match: null, scores: {}, history: [hist(applied.name, "entered", "Applied for this position")],
+      match: null, scores: {}, evals: {}, history: [hist(applied.name, "entered", "Applied for this position")],
     };
     onChange({ ...job, candidates: [c, ...job.candidates] });
     setForm({ name: "", email: "", phone: "", resume: "" });
@@ -167,6 +275,8 @@ export default function Board({ job, onChange }: { job: JobReq; onChange: (j: Jo
         </Card>
       )}
 
+      <PipelineFlow job={job} />
+
       <div className="kanban">
 
 
@@ -185,7 +295,7 @@ export default function Board({ job, onChange }: { job: JobReq; onChange: (j: Jo
                 <input className="stage-name" value={s.name} readOnly />
                 <span className="count">{inStage.length}</span>
               </div>
-              <div className="jr-crit-tag" title={`Pass criteria: ${s.criteria}%`}>gate ≥ {s.criteria}%</div>
+              <div className="jr-crit-tag" title={`Pass criteria: ${s.criteria}%`}>{EVAL_ICON[s.evalType]} · gate ≥ {s.criteria}%</div>
               <div className="kanban-cards">
                 {inStage.map((c) => (
                   <div
@@ -202,23 +312,56 @@ export default function Board({ job, onChange }: { job: JobReq; onChange: (j: Jo
                     <div className="jr-mini">{c.match != null ? `AI match ${c.match}%` : "not screened"}</div>
                     {openCand === c.id && (
                       <div className="jr-detail" onClick={(e) => e.stopPropagation()}>
-                        <b>Round scores</b>
-                        <div className="chips" style={{ margin: "6px 0" }}>
-                          {job.stages.filter((st) => c.scores[st.id] != null).map((st) => (
-                            <span key={st.id} className={`chip ${c.scores[st.id] >= st.criteria ? "on" : ""}`}>{st.name}: {c.scores[st.id]}%</span>
-                          ))}
-                          {Object.keys(c.scores).length === 0 && <span className="chip">no scores yet</span>}
+                        <b>Journey</b>
+                        <div className="jr-journey">
+                          {job.stages.map((st) => {
+                            const done = c.scores[st.id] != null;
+                            const cur = st.id === c.stageId;
+                            return (
+                              <div key={st.id} className={`jr-step ${done ? "done" : cur ? "cur" : ""}`}>
+                                <span className="jr-step-ic">{done ? "✅" : cur ? "🔵" : "⚪"}</span>
+                                <span className="jr-step-lbl">{st.name}{done ? ` — ${c.scores[st.id]}%` : ""}</span>
+                              </div>
+                            );
+                          })}
                         </div>
+                        {(() => {
+                          const ev = c.pendingAI ?? c.evals[c.stageId]
+                            ?? [...job.stages].reverse().map((st) => c.evals[st.id]).find(Boolean);
+                          if (!ev) return <p className="jr-resume">{c.resume || "—"}</p>;
+                          return (
+                            <div className="jr-eval">
+                              <div className="chips" style={{ margin: "4px 0" }}>
+                                <span className="chip on">Overall {ev.score}%</span>
+                                {ev.skillsTotal > 0 && <span className="chip">Skills {ev.skillsMatched}/{ev.skillsTotal}</span>}
+                                {ev.experience > 0 && <span className="chip">Experience {ev.experience}%</span>}
+                                {ev.education > 0 && <span className="chip">Education {ev.education}%</span>}
+                                {ev.by === "human" && <span className="chip">🧑 human</span>}
+                                {ev.by === "ai_human" && <span className="chip">🤝 AI + Human</span>}
+                              </div>
+                              {ev.missing.length > 0 && <div className="jr-mini">Missing: {ev.missing.join(", ")}</div>}
+                              {ev.strengths.map((s, i) => <div key={`s${i}`} className="jr-mini">✅ {s}</div>)}
+                              {ev.concerns.map((s, i) => <div key={`c${i}`} className="jr-mini">⚠️ {s}</div>)}
+                              <div className="jr-mini jr-reco">💡 {ev.recommendation}</div>
+                            </div>
+                          );
+                        })()}
                         <b>Resume</b>
                         <p className="jr-resume">{c.resume || "—"}</p>
                       </div>
                     )}
                     {openCand === c.id && !isLast && s.criteria > 0 && (
                       <div className="jr-actions" onClick={(e) => e.stopPropagation()}>
-                        {s.id === job.stages[0].id && c.match == null && (
-                          <button onClick={() => analyze(c.id)}>🤖 AI screen</button>
+                        {s.evalType !== "human" && !c.pendingAI && (
+                          <button onClick={() => runAI(c.id)}>🤖 AI evaluate</button>
                         )}
-                        {scoring?.id === c.id ? (
+                        {s.evalType === "ai_human" && c.pendingAI && (
+                          <>
+                            <button onClick={() => confirmAI(c.id, true)}>🤝 Accept AI ({c.pendingAI.score}%)</button>
+                            <button className="danger" onClick={() => confirmAI(c.id, false)}>✕ Override</button>
+                          </>
+                        )}
+                        {s.evalType === "human" && (scoring?.id === c.id ? (
                           <>
                             <input
                               autoFocus
@@ -233,7 +376,7 @@ export default function Board({ job, onChange }: { job: JobReq; onChange: (j: Jo
                           </>
                         ) : (
                           <button onClick={() => setScoring({ id: c.id, value: "" })}>📝 Score {s.name}</button>
-                        )}
+                        ))}
                         <button className="danger" onClick={() => drop(c.id, FALLOUT_ID)}>✕ not qualified</button>
                       </div>
                     )}

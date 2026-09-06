@@ -4,9 +4,9 @@ import { JobReq, MODE_LABEL, funnelStats, loadJobs, newJob, saveJobs } from "./a
 import JobEditor from "./aireq/JobEditor";
 import Board from "./aireq/Board";
 import "./aireq/aireq.css";
-import "./aireq/aireq.css";
+import { JobPreviewCard } from "./aireq/PublicJob";
 
-type View = { kind: "list" } | { kind: "pipeline"; id: string } | { kind: "funnel"; id: string };
+type View = { kind: "list" } | { kind: "pipeline"; id: string } | { kind: "funnel"; id: string } | { kind: "preview"; id: string };
 
 /** AI Requirement — hiring pipelines: JD + stage machine with pass criteria. */
 export default function AiRequirement() {
@@ -43,6 +43,33 @@ export default function AiRequirement() {
           }}
           onCancel={() => setEditing(null)}
         />
+      </div>
+    );
+  }
+
+  if (view.kind === "preview" && active) {
+    const url = `${location.origin}/jobs/${active.id}`;
+    return (
+      <div>
+        <button className="btn ghost sm" style={{ marginBottom: 10 }} onClick={() => setView({ kind: "list" })}>
+          ← All jobs
+        </button>
+        <div className="page-head">
+          <div>
+            <h2>👁 Job preview — candidate view</h2>
+            <div className="sub">Exactly what applicants see at the public link below</div>
+          </div>
+        </div>
+        <Card style={{ marginBottom: 14 }}>
+          <div className="card-head"><h3>🔗 Application link</h3><Badge tone={active.status === "published" ? "green" : "gray"}>{active.status}</Badge></div>
+          <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+            <code className="jr-link">{url}</code>
+            <Button size="sm" onClick={() => { navigator.clipboard?.writeText(url).catch(() => {}); }}>📋 Copy</Button>
+            <Button size="sm" onClick={() => window.open(url, "_blank")}>↗ Open</Button>
+          </div>
+          <div className="sub" style={{ marginTop: 8 }}>Share this URL on job boards or with candidates — applications land straight in the <b>Applied</b> stage.</div>
+        </Card>
+        <JobPreviewCard job={active} />
       </div>
     );
   }
@@ -112,6 +139,7 @@ export default function AiRequirement() {
               key={j.id}
               job={j}
               onOpen={() => setView({ kind: "pipeline", id: j.id })}
+              onPreview={() => setView({ kind: "preview", id: j.id })}
               onEdit={() => setEditing(j)}
               onToggle={() => upsert({ ...j, status: j.status === "published" ? "closed" : "published" })}
               onDelete={() => { if (confirm(`Delete "${j.title}" and its ${j.candidates.length} candidates?`)) setJobs(jobs.filter((x) => x.id !== j.id)); }}
@@ -123,10 +151,11 @@ export default function AiRequirement() {
   );
 
 function JobCard({
-  job, onOpen, onEdit, onToggle, onDelete,
+  job, onOpen, onPreview, onEdit, onToggle, onDelete,
 }: {
   job: JobReq;
   onOpen: () => void;
+  onPreview: () => void;
   onEdit: () => void;
   onToggle: () => void;
   onDelete: () => void;
@@ -154,6 +183,7 @@ function JobCard({
       </div>
       <div className="req-actions">
         <button onClick={onOpen}>🗂 pipeline</button>
+        <button onClick={onPreview}>👁 preview</button>
         <button onClick={onEdit}>✏️ edit</button>
         <button onClick={onToggle}>{job.status === "published" ? "⏸ close" : "🚀 publish"}</button>
         <button className="danger" onClick={onDelete}>🗑</button>
@@ -179,16 +209,28 @@ function Funnel({ job }: { job: JobReq }) {
       <Card>
         <div className="card-head"><h3>Pipeline funnel</h3><Badge tone="blue">candidates per stage</Badge></div>
         <div className="stack">
-          {st.perStage.map((p) => (
-            <div key={p.id} className="jr-funnel-row">
-              <span className="jr-funnel-name">{p.name}</span>
-              <span className="jr-crit-tag">≥ {p.criteria}%</span>
-              <div className="jr-funnel-bar">
-                <span style={{ width: `${(p.count / max) * 100}%` }} />
+          {st.perStage.map((p, i) => {
+            const prev = i === 0 ? st.total : st.perStage[i - 1].count;
+            const conv = prev > 0 ? Math.round((p.count / prev) * 100) : 0;
+            const scored = job.candidates.filter((c) => c.stageId === p.id && c.scores[p.id] != null);
+            const avg = scored.length ? Math.round(scored.reduce((s, c) => s + (c.scores[p.id] ?? 0), 0) / scored.length) : null;
+            const waiting = p.count - scored.length;
+            return (
+              <div key={p.id} className="jr-funnel-row">
+                <span className="jr-funnel-name">{p.name}</span>
+                <span className="jr-crit-tag">≥ {p.criteria}%</span>
+                <div className="jr-funnel-bar">
+                  <span style={{ width: `${(p.count / max) * 100}%` }} />
+                </div>
+                <b className="jr-funnel-count">{p.count}</b>
+                <span className="jr-funnel-meta">
+                  {i > 0 && <em title="Conversion from previous stage">↳ {conv}%</em>}
+                  {avg != null && <em title="Average score of evaluated candidates">avg {avg}%</em>}
+                  {waiting > 0 && <em className="jr-wait" title="Waiting for evaluation">{waiting} waiting</em>}
+                </span>
               </div>
-              <b className="jr-funnel-count">{p.count}</b>
-            </div>
-          ))}
+            );
+          })}
           <div className="jr-funnel-row">
             <span className="jr-funnel-name" style={{ color: "var(--red)" }}>Not Qualified</span>
             <span className="jr-crit-tag">fallout</span>

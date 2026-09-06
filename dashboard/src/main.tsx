@@ -24,8 +24,10 @@ import Forms from "./views/Forms";
 import FormBuilder from "./views/FormBuilder";
 import FormSubmissions from "./views/FormSubmissions";
 import PublicForm from "./views/PublicForm";
+import PublicJob from "./views/aireq/PublicJob";
 import Landing from "./views/landing/Landing";
 import AiRequirement from "./views/AiRequirement";
+import StageTemplates from "./views/aireq/StageTemplates";
 import Invoices from "./views/Invoices";
 import Widgets from "./views/Widgets";
 import AiChat from "./views/AiChat";
@@ -117,7 +119,8 @@ function isActive(routeName: string, key: string): boolean {
   if (key === "ai-chat") return routeName === "ai-chat";
   if (key === "ai-voice-bot") return routeName === "ai-voice-bot";
   if (key === "widgets") return routeName === "widgets";
-  if (key === "ai-requirement") return routeName === "ai-requirement";
+  if (key === "ai-requirement") return routeName === "ai-requirement" || routeName === "stage-templates";
+  if (key === "stage-templates") return routeName === "stage-templates";
   if (key === "invoices") return routeName === "invoices";
   return routeName === key;
 }
@@ -192,6 +195,9 @@ function App() {
   // Public share link: standalone page without the dashboard shell.
   if (route.name === "form-public") {
     return <PublicForm slug={route.slug} />;
+  }
+  if (route.name === "job-public") {
+    return <PublicJob id={route.id} />;
   }
 
   return (
@@ -295,6 +301,7 @@ function App() {
           {route.name === "integrations" && <Integrations />}
           {route.name === "audit" && <AuditLogs />}
           {route.name === "ai-requirement" && <AiRequirement />}
+          {route.name === "stage-templates" && <StageTemplates />}
           {route.name === "invoices" && <Invoices />}
           {route.name === "widgets" && <Widgets />}
           {route.name === "ai-chat" && <AiChat />}

@@ -17,7 +17,13 @@ export type Route =
   | { name: "forms" }
   | { name: "form-builder"; id: string }
   | { name: "form-submissions"; id: string }
-  | { name: "form-public"; slug: string };
+  | { name: "form-public"; slug: string }
+  | { name: "ai-requirement" }
+  | { name: "invoices" }
+  | { name: "widgets" }
+  | { name: "ai-chat" }
+  | { name: "ai-voice-bot" }
+  | { name: "profile" };
 
 export function parseRoute(path: string): Route {
   const clean = path.replace(/^\/+|\/+$/g, "");
@@ -47,6 +53,12 @@ export function parseRoute(path: string): Route {
   }
   if (parts[0] === "forms" && parts[1]) return { name: "form-builder", id: parts[1] };
   if (parts[0] === "forms") return { name: "forms" };
+  if (parts[0] === "ai-requirement") return { name: "ai-requirement" };
+  if (parts[0] === "invoices") return { name: "invoices" };
+  if (parts[0] === "widgets") return { name: "widgets" };
+  if (parts[0] === "ai-chat") return { name: "ai-chat" };
+  if (parts[0] === "ai-voice-bot") return { name: "ai-voice-bot" };
+  if (parts[0] === "profile") return { name: "profile" };
   return { name: "dashboard" };
 }
 

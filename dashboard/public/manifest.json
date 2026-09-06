@@ -1,0 +1,25 @@
+{
+  "name": "Prema AI Voice Agent",
+  "short_name": "Prema AI",
+  "description": "Self-hosted AI voice-call agents for Indian numbers & regional languages — campaigns, CRM, forms, LLM cost, analytics.",
+  "start_url": "/app",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#0a0e16",
+  "theme_color": "#6366f1",
+  "icons": [
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

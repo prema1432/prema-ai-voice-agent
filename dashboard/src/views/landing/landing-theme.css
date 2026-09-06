@@ -5,7 +5,7 @@
    same premium brand look in each.
    ============================================================ */
 :root,
-[data-theme="light"] {
+.landing [data-theme="light"] {
   --l-bg: #f4f6fe;
   --l-bg-img:
     radial-gradient(900px 500px at 85% -10%, rgba(168, 85, 247, 0.1), transparent 60%),
@@ -54,7 +54,7 @@
   --l-footer-bg: linear-gradient(180deg, transparent, rgba(226, 232, 255, 0.7));
 }
 
-[data-theme="dark"] {
+.landing [data-theme="dark"] {
   --l-bg: #070a14;
   --l-bg-img:
     radial-gradient(900px 500px at 85% -10%, rgba(217, 70, 239, 0.1), transparent 60%),
@@ -104,7 +104,7 @@
 }
 
 /* ── Scroll progress bar (3D gradient, pinned to top) ──── */
-.scroll-progress {
+.landing .scroll-progress {
   position: fixed;
   top: 0;
   left: 0;
@@ -139,7 +139,7 @@
 }
 
 /* ── Scroll-down hint ──────────────────────────────────── */
-.scroll-hint {
+.landing .scroll-hint {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -150,14 +150,14 @@
   letter-spacing: 0.16em;
   text-transform: uppercase;
 }
-.scroll-hint .mouse {
+.landing .scroll-hint .mouse {
   width: 22px;
   height: 34px;
   border: 1.5px solid var(--l-border-strong);
   border-radius: 12px;
   position: relative;
 }
-.scroll-hint .wheel {
+.landing .scroll-hint .wheel {
   position: absolute;
   top: 6px;
   left: 50%;
@@ -175,13 +175,13 @@
 }
 
 /* ── Light-theme polish for the 3D hero mock ───────────── */
-[data-theme="light"] .orb { opacity: 0.42; }
-[data-theme="light"] .mock-live { color: #047857; }
-[data-theme="light"] .ld-brand-mark {
+.landing [data-theme="light"] .orb { opacity: 0.42; }
+.landing [data-theme="light"] .mock-live { color: #047857; }
+.landing [data-theme="light"] .ld-brand-mark {
   filter: drop-shadow(0 4px 14px rgba(99, 102, 241, 0.35));
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .scroll-hint .wheel { animation: none; }
-  .ld-theme:hover { transform: none; }
+.landing .scroll-hint .wheel { animation: none; }
+.ld-theme:hover { transform: none; }
 }

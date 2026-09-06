@@ -13,6 +13,10 @@ export default function AiRequirement() {
   const [jobs, setJobs] = useState<JobReq[]>(() => loadJobs());
   const [view, setView] = useState<View>({ kind: "list" });
   const [editing, setEditing] = useState<JobReq | null>(null);
+  /** Job id whose share-link panel is open on the card. */
+  const [shareFor, setShareFor] = useState<string | null>(null);
+  /** Job id whose URL was just copied (for the ✓ flash). */
+  const [copied, setCopied] = useState<string | null>(null);
 
   useEffect(() => saveJobs(jobs), [jobs]);
 
@@ -24,6 +28,15 @@ export default function AiRequirement() {
   useEffect(() => {
     if (view.kind !== "list" && !active) setView({ kind: "list" });
   }, [view, active]);
+
+  function copyShare(id: string) {
+    const job = jobs.find((j) => j.id === id);
+    if (!job) return;
+    const url = `${location.origin}/jobs/${job.id}`;
+    navigator.clipboard?.writeText(url).catch(() => {});
+    setCopied(id);
+    window.setTimeout(() => setCopied((c) => (c === id ? null : c)), 1600);
+  }
 
   if (editing) {
     return (
@@ -62,12 +75,14 @@ export default function AiRequirement() {
         </div>
         <Card style={{ marginBottom: 14 }}>
           <div className="card-head"><h3>🔗 Application link</h3><Badge tone={active.status === "published" ? "green" : "gray"}>{active.status}</Badge></div>
-          <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+          <div className="jr-share-row">
             <code className="jr-link">{url}</code>
-            <Button size="sm" onClick={() => { navigator.clipboard?.writeText(url).catch(() => {}); }}>📋 Copy</Button>
+            <Button size="sm" variant="primary" onClick={() => { navigator.clipboard?.writeText(url).catch(() => {}); }}>📋 Copy</Button>
             <Button size="sm" onClick={() => window.open(url, "_blank")}>↗ Open</Button>
+            <a className="jr-share-btn" href={`https://wa.me/?text=${encodeURIComponent(`Apply for ${active.title || "this opening"} — ${url}`)}`} target="_blank" rel="noreferrer">💬 WhatsApp</a>
+            <a className="jr-share-btn" href={`mailto:?subject=${encodeURIComponent(`Job opening: ${active.title || "Apply now"}`)}&body=${encodeURIComponent(`Apply for ${active.title || "this opening"} — ${url}`)}`}>✉️ Email</a>
           </div>
-          <div className="sub" style={{ marginTop: 8 }}>Share this URL on job boards or with candidates — applications land straight in the <b>Applied</b> stage.</div>
+          <div className="sub" style={{ marginTop: 8 }}>Share this unique URL on job boards or with candidates — applications land straight in the <b>Applied</b> stage.</div>
         </Card>
         <JobPreviewCard job={active} />
       </div>
@@ -138,10 +153,27 @@ export default function AiRequirement() {
             <JobCard
               key={j.id}
               job={j}
+              shareOpen={shareFor === j.id}
+              copied={copied === j.id}
+              onShare={() => {
+                if (j.status !== "published") {
+                  if (window.confirm(`Publish "${j.title || "this job"}" first so candidates can apply?`)) {
+                    upsert({ ...j, status: "published" });
+                    setShareFor(j.id);
+                  }
+                  return;
+                }
+                setShareFor(shareFor === j.id ? null : j.id);
+              }}
+              onCopy={() => copyShare(j.id)}
               onOpen={() => setView({ kind: "pipeline", id: j.id })}
               onPreview={() => setView({ kind: "preview", id: j.id })}
               onEdit={() => setEditing(j)}
-              onToggle={() => upsert({ ...j, status: j.status === "published" ? "closed" : "published" })}
+              onToggle={() => {
+                const published = j.status !== "published";
+                upsert({ ...j, status: published ? "published" : "closed" });
+                if (published) setShareFor(j.id); // surface the share link right away
+              }}
               onDelete={() => { if (confirm(`Delete "${j.title}" and its ${j.candidates.length} candidates?`)) setJobs(jobs.filter((x) => x.id !== j.id)); }}
             />
           ))}
@@ -151,7 +183,7 @@ export default function AiRequirement() {
   );
 
 function JobCard({
-  job, onOpen, onPreview, onEdit, onToggle, onDelete,
+  job, onOpen, onPreview, onEdit, onToggle, onDelete, onShare, onCopy, shareOpen, copied,
 }: {
   job: JobReq;
   onOpen: () => void;
@@ -159,9 +191,15 @@ function JobCard({
   onEdit: () => void;
   onToggle: () => void;
   onDelete: () => void;
+  onShare: () => void;
+  onCopy: () => void;
+  shareOpen: boolean;
+  copied: boolean;
 }) {
   const st = useMemo(() => funnelStats(job), [job]);
   const fill = Math.min(100, Math.round((st.hired / Math.max(1, job.openings)) * 100));
+  const shareUrl = `${location.origin}/jobs/${job.id}`;
+  const shareText = encodeURIComponent(`Apply for ${job.title || "this opening"} — ${shareUrl}`);
   return (
     <Card className="req-card">
       <div className="req-head">
@@ -184,10 +222,32 @@ function JobCard({
       <div className="req-actions">
         <button onClick={onOpen}>🗂 pipeline</button>
         <button onClick={onPreview}>👁 preview</button>
+        <button onClick={onShare} className={shareOpen ? "on" : ""}>🔗 share</button>
         <button onClick={onEdit}>✏️ edit</button>
         <button onClick={onToggle}>{job.status === "published" ? "⏸ close" : "🚀 publish"}</button>
         <button className="danger" onClick={onDelete}>🗑</button>
       </div>
+
+      {shareOpen && (
+        <div className="jr-share">
+          <div className="jr-share-head">
+            <b>🔗 Candidate application link</b>
+            <span className="chip">{job.status === "published" ? "live — accept applications" : "draft — publish to go live"}</span>
+          </div>
+          <div className="jr-share-row">
+            <code className="jr-link">{shareUrl}</code>
+            <button className="jr-share-btn primary" onClick={onCopy}>
+              {copied ? "✓ Copied" : "📋 Copy"}
+            </button>
+            <a className="jr-share-btn" href={shareUrl} target="_blank" rel="noreferrer">↗ Open</a>
+            <a className="jr-share-btn" href={`https://wa.me/?text=${shareText}`} target="_blank" rel="noreferrer">💬 WhatsApp</a>
+            <a className="jr-share-btn" href={`mailto:?subject=${encodeURIComponent(`Job opening: ${job.title || "Apply now"}`)}&body=${shareText}`}>✉️ Email</a>
+          </div>
+          <div className="sub" style={{ marginTop: 6 }}>
+            Share this unique link anywhere — every application lands in the <b>{job.stages[0]?.name ?? "Applied"}</b> stage below and you'll see the candidate here instantly.
+          </div>
+        </div>
+      )}
     </Card>
   );
 }

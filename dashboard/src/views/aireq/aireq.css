@@ -119,6 +119,36 @@
   overflow-x: auto; white-space: nowrap;
 }
 
+/* ── Share panel on the job card (unique candidate link) ── */
+.jr-share {
+  margin-top: 10px; padding: 12px; border-radius: 12px;
+  background: color-mix(in srgb, var(--accent-1, #6366f1) 7%, var(--card, #fff));
+  border: 1px solid color-mix(in srgb, var(--accent-1, #6366f1) 28%, transparent);
+  animation: jr-fade-up 0.22s ease;
+}
+.jr-share-head {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 8px; flex-wrap: wrap; margin-bottom: 9px;
+}
+.jr-share-head b { font-size: 13px; }
+.jr-share-head .chip { font-size: 10.5px; padding: 3px 9px; }
+.jr-share-row {
+  display: flex; align-items: center; gap: 7px; flex-wrap: wrap;
+}
+.jr-share-row .jr-link { flex: 1 1 240px; min-width: 0; }
+.jr-share-btn {
+  display: inline-flex; align-items: center; gap: 5px; flex: none;
+  border: 1px solid var(--border); background: var(--card); color: var(--text);
+  font-size: 12px; font-weight: 650; font-family: inherit; cursor: pointer;
+  padding: 7px 12px; border-radius: 9px; text-decoration: none;
+  transition: border-color 0.15s, transform 0.15s, box-shadow 0.15s;
+}
+.jr-share-btn:hover { border-color: var(--accent-1); transform: translateY(-1px); box-shadow: 0 4px 12px rgba(99, 102, 241, 0.18); }
+.jr-share-btn.primary {
+  background: linear-gradient(135deg, var(--accent-1), var(--accent-2));
+  color: #fff; border-color: transparent;
+}
+
 /* ── Stage drag & drop (editor) ── */
 .jr-stage-row { cursor: default; }
 .jr-stage-row[draggable="true"] { cursor: grab; }

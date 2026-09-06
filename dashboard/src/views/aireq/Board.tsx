@@ -68,6 +68,9 @@ export default function Board({ job, onChange }: { job: JobReq; onChange: (j: Jo
   const [scoring, setScoring] = useState<{ id: string; value: string } | null>(null);
   const [adding, setAdding] = useState(false);
   const [form, setForm] = useState<Form>({ name: "", email: "", phone: "", resume: "" });
+  const [copiedLink, setCopiedLink] = useState(false);
+
+  const shareUrl = `${location.origin}/jobs/${job.id}`;
 
   const stageIdx = (id: string) => job.stages.findIndex((s) => s.id === id);
   const hist = (stage: string, result: HistoryEntry["result"], note: string): HistoryEntry => ({
@@ -252,12 +255,41 @@ export default function Board({ job, onChange }: { job: JobReq; onChange: (j: Jo
           </div>
         </div>
         <div className="page-head-actions">
+          <Button
+            size="sm"
+            variant={job.status === "published" ? "primary" : "default"}
+            title={job.status === "published" ? shareUrl : "Publish the job first to open applications"}
+            onClick={() => {
+              navigator.clipboard?.writeText(shareUrl).catch(() => {});
+              setCopiedLink(true);
+              window.setTimeout(() => setCopiedLink(false), 1600);
+            }}
+          >
+            {copiedLink ? "✓ Link copied" : "🔗 Share link"}
+          </Button>
           <Button size="sm" onClick={() => onChange({ ...job, candidates: [...job.candidates, ...demoCandidates(job)] })}>
             ✨ Demo candidates
           </Button>
           <Button size="sm" variant="primary" onClick={() => setAdding((a) => !a)}>＋ Apply candidate</Button>
         </div>
       </div>
+
+      {job.status === "published" && (
+        <div className="jr-share" style={{ marginBottom: 16 }}>
+          <div className="jr-share-head">
+            <b>🔗 Application link — share with candidates</b>
+            <span className="chip">live</span>
+          </div>
+          <div className="jr-share-row">
+            <code className="jr-link">{shareUrl}</code>
+            <Button size="sm" variant="primary" onClick={() => { navigator.clipboard?.writeText(shareUrl).catch(() => {}); setCopiedLink(true); window.setTimeout(() => setCopiedLink(false), 1600); }}>
+              {copiedLink ? "✓ Copied" : "📋 Copy"}
+            </Button>
+            <a className="jr-share-btn" href={shareUrl} target="_blank" rel="noreferrer">↗ Open</a>
+            <a className="jr-share-btn" href={`https://wa.me/?text=${encodeURIComponent(`Apply for ${job.title || "this opening"} — ${shareUrl}`)}`} target="_blank" rel="noreferrer">💬 WhatsApp</a>
+          </div>
+        </div>
+      )}
 
       {adding && (
         <Card style={{ marginBottom: 14 }}>

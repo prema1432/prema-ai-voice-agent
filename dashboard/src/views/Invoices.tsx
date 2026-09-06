@@ -142,7 +142,7 @@ export default function Invoices() {
         <div className="stat-card tone-violet"><span className="tone-line" /><span className="label">Invoices</span><div className="value">{rows.length}</div><div className="sub">all time</div></div>
         <div className="stat-card tone-green"><span className="tone-line" /><span className="label">Paid</span><div className="value">{rows.filter((r) => r.status === "paid").length}</div><div className="sub">settled</div></div>
         <div className="stat-card tone-amber"><span className="tone-line" /><span className="label">Outstanding</span><div className="value">₹{totalDue.toLocaleString("en-IN")}</div><div className="sub">draft + sent</div></div>
-
+      </div>n
       {editing && (
         <Card title={rows.some((r) => r.id === editing.id) ? "✏️ Edit invoice" : "➕ New invoice"} style={{ marginBottom: 20 }}>
           <div className="req-form">
@@ -227,4 +227,3 @@ export default function Invoices() {
     </div>
   );
 }
-      </div>

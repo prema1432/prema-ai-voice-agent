@@ -1,4 +1,5 @@
 import { Button } from "../../components";
+import { LANGUAGES } from "../../api";
 import { PRESETS, useCallEngine } from "./useCallEngine";
 
 type Engine = ReturnType<typeof useCallEngine>;
@@ -6,7 +7,7 @@ type Engine = ReturnType<typeof useCallEngine>;
 /** Left-hand card shown before/after a call: agent picker + number + options. */
 export function SetupPanel({ e }: { e: Engine }) {
   const {
-    selectedAgent, presetAgent, agents, phone, setPhone, typing, setTyping, lang,
+    selectedAgent, presetAgent, agents, phone, setPhone, typing, setTyping, lang, setLang,
     voiceSupported, ttsSupported, speakOn, setSpeak,
   } = e;
 
@@ -53,6 +54,13 @@ export function SetupPanel({ e }: { e: Engine }) {
           </button>
         ))}
       </div>
+
+      <label className="lbl" style={{ marginTop: 12 }}>Agent language</label>
+      <select className="select" value={lang} onChange={(ev) => setLang(ev.target.value)}>
+        {Object.entries(LANGUAGES).map(([code, label]) => (
+          <option key={code} value={code}>{label}</option>
+        ))}
+      </select>
 
       <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
         <button
@@ -115,7 +123,7 @@ export function SetupPanel({ e }: { e: Engine }) {
         onChange={(ev) => e.setLeadNotes(ev.target.value)}
       />
       <div style={{ fontSize: 11.5, color: "var(--text-faint)", marginTop: 10, lineHeight: 1.6 }}>
-        Agent speaks {lang === "te" ? "Telugu" : lang.toUpperCase()} unless the caller switches script.
+        Agent will speak in {LANGUAGES[lang] ?? lang} unless the caller switches script.
       </div>
     </div>
   );

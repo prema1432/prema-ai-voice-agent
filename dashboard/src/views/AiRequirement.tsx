@@ -16,7 +16,6 @@ interface Requirement {
 }
 
 const KEY = "prema.ai.requirements";
-const STORE = "📞";
 const CHANNEL_LABEL: Record<Requirement["channel"], string> = {
   voice: "AI Voice call",
   chat: "AI Chat bot",
@@ -113,7 +112,7 @@ export default function AiRequirement() {
         <div className="stat-card tone-indigo"><span className="tone-line" /><span className="label">Requirements</span><div className="value">{stats.total}</div><div className="sub">total scoped</div></div>
         <div className="stat-card tone-green"><span className="tone-line" /><span className="label">Approved</span><div className="value">{stats.approved}</div><div className="sub">ready to build</div></div>
         <div className="stat-card tone-amber"><span className="tone-line" /><span className="label">In scoping</span><div className="value">{stats.scoping}</div><div className="sub">needs refinement</div></div>
-
+      </div>n
       {editing && (
         <Card title={rows.some((r) => r.id === editing.id) ? "✏️ Edit requirement" : "➕ New requirement"} style={{ marginBottom: 20 }}>
           <div className="req-form">
@@ -193,4 +192,3 @@ export default function AiRequirement() {
     </div>
   );
 }
-      </div>

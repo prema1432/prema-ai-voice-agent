@@ -86,7 +86,7 @@ export default function Profile() {
             ["Telephony", ["Asterisk ARI + SIP trunk", "Browser WebSocket calls", "WhatsApp / webhook hooks optional"]],
             ["Deploy / Ops", ["Docker compose", "Nginx + PWA service worker", "MongoDB (self-hosted or Atlas)", "Local STT/TTS — no paid SaaS"]],
           ].map(([title, items]) => (
-            <div className="stack-col" key={title}>
+            <div className="stack-col" key={String(title)}>
               <b>{title}</b>
               {(items as string[]).map((it) => <span key={it}>{it}</span>)}
             </div>

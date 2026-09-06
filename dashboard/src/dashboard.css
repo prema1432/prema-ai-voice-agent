@@ -1,0 +1,149 @@
+/* ── Dashboard shell additions: nav groups, user menu, charts, tech stack ── */
+
+/* Collapsible nav groups */
+.nav-group { display: flex; flex-direction: column; gap: 2px; }
+.nav-group-head {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 12px; border: 0; background: transparent;
+  color: var(--text-faint); font-size: 11px; font-weight: 700;
+  letter-spacing: 0.08em; text-transform: uppercase;
+  cursor: pointer; border-radius: 8px;
+}
+.nav-group-head:hover { color: var(--text); background: var(--bg-soft); }
+.nav-group-head .chev { margin-left: auto; font-size: 10px; transition: transform 0.18s ease; }
+.nav-group.open .nav-group-head .chev { transform: rotate(0deg); }
+.nav-group:not(.open) .nav-group-head .chev { transform: rotate(-90deg); }
+.nav-group-body { display: none; flex-direction: column; gap: 2px; padding-left: 6px; }
+.nav-group.open .nav-group-body { display: flex; }
+.nav-item.sub { padding: 7px 12px; font-size: 13px; }
+.nav-item.sub.active {
+  color: #fff;
+  background: linear-gradient(135deg, var(--accent-1), var(--accent-2));
+  box-shadow: 0 4px 14px color-mix(in srgb, var(--accent-1) 40%, transparent);
+}
+.nav-group.has-active:not(.open) .nav-group-head { color: var(--accent-1); }
+
+/* Icon-only collapsed sidebar: flatten groups */
+.sidebar.collapsed .nav-group-head .lbl,
+.sidebar.collapsed .nav-group-head .chev { display: none; }
+.sidebar.collapsed .nav-group-head { padding: 8px 10px; justify-content: center; }
+.sidebar.collapsed .nav-group-body { display: flex; padding-left: 0; }
+.sidebar.collapsed .nav-item.sub .lbl { display: none; }
+.sidebar.collapsed .nav-item.sub { justify-content: center; padding: 8px 0; }
+
+/* ── Topbar user menu (profile + logout) ── */
+.um-wrap { position: relative; margin-left: 4px; }
+.um-trigger {
+  display: flex; align-items: center; gap: 10px;
+  padding: 5px 10px 5px 5px; border: 1px solid var(--border);
+  background: var(--card); border-radius: 999px; cursor: pointer;
+}
+.um-trigger:hover { border-color: var(--accent-1); }
+.um-avatar {
+  width: 32px; height: 32px; border-radius: 50%;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: linear-gradient(135deg, var(--accent-1), var(--accent-3));
+  color: #fff; font-weight: 700; font-size: 12.5px; flex: none;
+}
+.um-avatar.lg { width: 42px; height: 42px; font-size: 15px; }
+.um-text { display: flex; flex-direction: column; align-items: flex-start; line-height: 1.2; }
+.um-text b { font-size: 12.5px; color: var(--text); }
+.um-text em { font-size: 11px; font-style: normal; color: var(--text-muted); }
+.um-caret { font-size: 10px; color: var(--text-faint); transition: transform 0.15s ease; }
+.um-caret.on { transform: rotate(180deg); }
+.um-pop {
+  position: absolute; right: 0; top: calc(100% + 8px); width: 250px; z-index: 60;
+}
+.um-pop-head {
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px 14px; border-bottom: 1px solid var(--border-soft);
+}
+.um-pop-head b { display: block; font-size: 13.5px; }
+.um-pop-head em { font-style: normal; font-size: 12px; color: var(--text-muted); }
+.um-menu { display: flex; flex-direction: column; padding: 6px; }
+.um-menu button {
+  display: flex; align-items: center; gap: 10px; text-align: left;
+  padding: 9px 10px; border: 0; background: transparent; border-radius: 8px;
+  color: var(--text); font-size: 13px; cursor: pointer;
+}
+.um-menu button:hover { background: var(--bg-soft); }
+.um-logout {
+  display: block; width: calc(100% - 12px); margin: 4px 6px 8px;
+  padding: 9px 10px; border-radius: 8px; cursor: pointer;
+  border: 1px solid color-mix(in srgb, #ef4444 40%, var(--border));
+  background: color-mix(in srgb, #ef4444 10%, transparent);
+  color: #ef4444; font-weight: 700; font-size: 13px;
+}
+.um-logout:hover { background: color-mix(in srgb, #ef4444 18%, transparent); }
+
+/* ── Chart extras ── */
+.legend-row { display: flex; flex-wrap: wrap; gap: 8px 14px; margin-top: 6px; }
+.legend-item {
+  display: inline-flex; align-items: center; gap: 7px;
+  font-size: 12px; color: var(--text-muted);
+}
+.legend-item i { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
+.legend-item b { color: var(--text); }
+.range-tabs {
+  display: inline-flex; gap: 2px; padding: 2px;
+  border: 1px solid var(--border); border-radius: 8px; background: var(--bg-soft);
+}
+.range-tabs button {
+  border: 0; background: transparent; color: var(--text-muted);
+  font-size: 12px; font-weight: 600; padding: 4px 10px; border-radius: 6px; cursor: pointer;
+}
+.range-tabs button.on {
+  background: linear-gradient(135deg, var(--accent-1), var(--accent-2));
+  color: #fff;
+}
+.demo-pill {
+  align-self: center; font-size: 12px; font-weight: 600;
+  padding: 6px 12px; border-radius: 999px;
+  border: 1px dashed var(--accent-2);
+  color: var(--accent-2); background: color-mix(in srgb, var(--accent-2) 8%, transparent);
+}
+
+/* ── Tech stack grid ── */
+.tech-grid {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px;
+}
+.tech-card {
+  border: 1px solid var(--border-soft); border-radius: 14px;
+  background: var(--bg-soft); padding: 14px; position: relative; overflow: hidden;
+}
+.tech-card::before {
+  content: ""; position: absolute; inset: 0 auto 0 0; width: 3px;
+  background: var(--tc, var(--accent-1));
+}
+.tech-head { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+.tech-head b { font-size: 14px; color: var(--text); }
+.tech-ic {
+  width: 34px; height: 34px; border-radius: 10px; font-size: 17px;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: color-mix(in srgb, var(--tc, var(--accent-1)) 14%, transparent);
+}
+.tech-items { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.tech-items li { display: flex; flex-direction: column; gap: 1px; }
+.tech-items li b { font-size: 12.8px; color: var(--text); font-weight: 650; }
+.tech-items li span { font-size: 11.8px; color: var(--text-muted); }
+
+/* ── Topbar actions: bell + theme toggle beside search ── */
+.topbar-actions { display: flex; align-items: center; gap: 8px; margin-left: auto; }
+.topbar-actions .bell-btn {
+  width: auto; justify-content: center; align-items: center;
+  padding: 7px 11px; border-radius: 999px; gap: 6px; font-size: 14px;
+}
+.topbar-actions .bell-badge { margin-left: 0; }
+.topbar-actions .bell-pop {
+  left: auto; right: 0; top: calc(100% + 10px); bottom: auto;
+}
+.topbar-actions .theme-toggle {
+  margin-top: 0; padding: 5px 9px 5px 12px; border-radius: 999px;
+  background: var(--card);
+}
+
+@media (max-width: 720px) {
+  .tech-grid { grid-template-columns: 1fr; }
+  .um-text { display: none; }
+  .page-head-actions { flex-wrap: wrap; }
+}

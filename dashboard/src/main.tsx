@@ -3,7 +3,6 @@ import { createRoot } from "react-dom/client";
 import { api } from "./api";
 import GlobalSearch from "./components/GlobalSearch";
 import { NotificationBell } from "./components/NotificationBell";
-import ModelPicker from "./components/ModelPicker";
 import { navigate, parseRoute } from "./router";
 import { applyRouteSeo } from "./seo";
 import { getTheme, initTheme, toggleTheme, Theme } from "./theme";
@@ -26,8 +25,16 @@ import FormBuilder from "./views/FormBuilder";
 import FormSubmissions from "./views/FormSubmissions";
 import PublicForm from "./views/PublicForm";
 import Landing from "./views/landing/Landing";
+import AiRequirement from "./views/AiRequirement";
+import Invoices from "./views/Invoices";
+import Widgets from "./views/Widgets";
+import AiChat from "./views/AiChat";
+import AiVoiceBot from "./views/AiVoiceBot";
+import Profile from "./views/Profile";
+import UserMenu from "./components/UserMenu";
 import "./styles.css";
 import "./platform.css";
+import "./dashboard.css";
 
 initTheme();
 
@@ -41,25 +48,60 @@ function useRoute(): ReturnType<typeof parseRoute> {
   return parseRoute(path);
 }
 
-const NAV = [
-  { key: "dashboard", label: "Dashboard", icon: "📊", path: "app" },
-  { key: "campaigns", label: "Campaigns", icon: "📋", path: "campaigns" },
-  { key: "forms", label: "Forms", icon: "📝", path: "forms" },
-  { key: "crm", label: "CRM Board", icon: "🗂", path: "crm" },
-  { key: "agents", label: "Agents", icon: "🤖", path: "agents" },
-  { key: "voicelab", label: "Voice Lab", icon: "🎤", path: "voicelab" },
-  { key: "calls", label: "Call Logs", icon: "📞", path: "calls" },
-  { key: "llm", label: "LLM & Cost", icon: "🧠", path: "llm" },
-  { key: "llm-models", label: "LLM Models", icon: "📚", path: "llm/models" },
-  { key: "integrations", label: "Integrations", icon: "🔌", path: "integrations" },
-  { key: "notifications", label: "Notifications", icon: "🔔", path: "notifications" },
-  { key: "audit", label: "Audit Logs", icon: "🧾", path: "audit" },
-] as const;
+type NavItem = { key: string; label: string; icon: string; path: string };
+const NAV_GROUPS: { label: string; icon: string; items: NavItem[] }[] = [
+  {
+    label: "Overview",
+    icon: "🏠",
+    items: [
+      { key: "dashboard", label: "Dashboard", icon: "📊", path: "app" },
+      { key: "campaigns", label: "Campaigns", icon: "📋", path: "campaigns" },
+      { key: "crm", label: "CRM Board", icon: "🗂", path: "crm" },
+      { key: "calls", label: "Call Logs", icon: "📞", path: "calls" },
+    ],
+  },
+  {
+    label: "AI Studio",
+    icon: "🧠",
+    items: [
+      { key: "agents", label: "Agents", icon: "🤖", path: "agents" },
+      { key: "voicelab", label: "Voice Lab", icon: "🎤", path: "voicelab" },
+      { key: "ai-chat", label: "AI Chat Bot", icon: "💬", path: "ai-chat" },
+      { key: "ai-voice-bot", label: "AI Voice Bot", icon: "🗣️", path: "ai-voice-bot" },
+      { key: "widgets", label: "Widget Studio", icon: "🧩", path: "widgets" },
+    ],
+  },
+  {
+    label: "Automation",
+    icon: "⚙️",
+    items: [
+      { key: "forms", label: "Forms", icon: "📝", path: "forms" },
+      { key: "ai-requirement", label: "AI Requirement", icon: "🪄", path: "ai-requirement" },
+      { key: "invoices", label: "Invoice Generator", icon: "🧾", path: "invoices" },
+      { key: "integrations", label: "Integrations", icon: "🔌", path: "integrations" },
+    ],
+  },
+  {
+    label: "Intelligence",
+    icon: "📈",
+    items: [
+      { key: "llm", label: "LLM & Cost", icon: "🧠", path: "llm" },
+      { key: "llm-models", label: "LLM Models", icon: "📚", path: "llm/models" },
+      { key: "notifications", label: "Notifications", icon: "🔔", path: "notifications" },
+      { key: "audit", label: "Audit Logs", icon: "🧾", path: "audit" },
+    ],
+  },
+];
 
 const FOOT_LINKS: { label: string; path: string }[] = [
   { label: "Dashboard", path: "app" },
   { label: "Campaigns", path: "campaigns" },
   { label: "Forms", path: "forms" },
+  { label: "AI Requirement", path: "ai-requirement" },
+  { label: "Invoices", path: "invoices" },
+  { label: "Widgets", path: "widgets" },
+  { label: "AI Chat Bot", path: "ai-chat" },
+  { label: "AI Voice Bot", path: "ai-voice-bot" },
   { label: "CRM Pipeline", path: "crm" },
   { label: "Voice Lab", path: "voicelab" },
   { label: "Agents", path: "agents" },
@@ -69,6 +111,7 @@ const FOOT_LINKS: { label: string; path: string }[] = [
   { label: "Integrations", path: "integrations" },
   { label: "Notifications", path: "notifications" },
   { label: "Audit Logs", path: "audit" },
+  { label: "Profile", path: "profile" },
 ];
 
 function isActive(routeName: string, key: string): boolean {
@@ -79,6 +122,11 @@ function isActive(routeName: string, key: string): boolean {
   if (key === "forms") return routeName === "forms" || routeName === "form-builder" || routeName === "form-submissions";
   if (key === "llm") return routeName === "llm" || routeName === "llm-models" || routeName === "llm-model";
   if (key === "llm-models") return routeName === "llm-models" || routeName === "llm-model";
+  if (key === "ai-chat") return routeName === "ai-chat";
+  if (key === "ai-voice-bot") return routeName === "ai-voice-bot";
+  if (key === "widgets") return routeName === "widgets";
+  if (key === "ai-requirement") return routeName === "ai-requirement";
+  if (key === "invoices") return routeName === "invoices";
   return routeName === key;
 }
 
@@ -93,6 +141,21 @@ function App() {
   useEffect(() => {
     localStorage.setItem("prema.sidebar.collapsed", collapsed ? "1" : "0");
   }, [collapsed]);
+
+  // Collapsible nav groups — persisted, all open by default.
+  const [openGroups, setOpenGroups] = useState<string[]>(() => {
+    try {
+      const raw = localStorage.getItem("prema.sidebar.groups");
+      return raw ? (JSON.parse(raw) as string[]) : NAV_GROUPS.map((g) => g.label);
+    } catch {
+      return NAV_GROUPS.map((g) => g.label);
+    }
+  });
+  useEffect(() => {
+    localStorage.setItem("prema.sidebar.groups", JSON.stringify(openGroups));
+  }, [openGroups]);
+  const toggleGroup = (label: string) =>
+    setOpenGroups((gs) => (gs.includes(label) ? gs.filter((g) => g !== label) : [...gs, label]));
 
   useEffect(() => {
     const ping = () => api.health().then(setHealth).catch((e) => setErr(String(e)));
@@ -148,28 +211,41 @@ function App() {
           </button>
         </div>
 
-        {NAV.map((n) => (
-          <button
-            key={n.key}
-            className={`nav-item ${isActive(route.name, n.key) ? "active" : ""}`}
-            onClick={() => navigate(n.path)}
-          >
-            <span className="ic">{n.icon}</span>
-            <span className="lbl">{n.label}</span>
-          </button>
-        ))}
-
-        <ModelPicker />
+        {NAV_GROUPS.map((g) => {
+          const open = collapsed || openGroups.includes(g.label);
+          const groupActive = g.items.some((n) => isActive(route.name, n.key));
+          return (
+            <div
+              key={g.label}
+              className={`nav-group ${open ? "open" : ""} ${groupActive ? "has-active" : ""}`}
+            >
+              <button
+                className="nav-group-head"
+                onClick={() => toggleGroup(g.label)}
+                title={collapsed ? g.label : undefined}
+              >
+                <span className="ic">{g.icon}</span>
+                <span className="lbl">{g.label}</span>
+                <span className="chev">▾</span>
+              </button>
+              <div className="nav-group-body">
+                {g.items.map((n) => (
+                  <button
+                    key={n.key}
+                    className={`nav-item sub ${isActive(route.name, n.key) ? "active" : ""}`}
+                    onClick={() => navigate(n.path)}
+                    title={collapsed ? n.label : undefined}
+                  >
+                    <span className="ic">{n.icon}</span>
+                    <span className="lbl">{n.label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          );
+        })}
 
         <div className="sidebar-foot">
-          <NotificationBell />
-          <button className="theme-toggle" data-on={theme} onClick={changeTheme} title="Toggle theme">
-            <span className="theme-group">
-              <span className="theme-ic">{theme === "light" ? "☀️" : "🌙"}</span>
-              <span className="lbl">{theme === "light" ? "Light" : "Dark"}</span>
-            </span>
-            <span className="sw" />
-          </button>
           <span className="pill">
             <span className={`dot ${llmKeySet ? "green" : "amber"}`} />
             <span className="lbl">LLM key {llmKeySet ? "set" : "missing"}</span>
@@ -198,15 +274,18 @@ function App() {
 
           <GlobalSearch />
 
-          {user && (
-            <div className="topbar-user" title={`${user.email}`}>
-              <span className="avatar">{initials(user.name)}</span>
-              <span className="user-text">
-                <b>{user.name}</b>
-                <em>{user.email}</em>
+          <div className="topbar-actions">
+            <NotificationBell />
+            <button className="theme-toggle" data-on={theme} onClick={changeTheme} title="Toggle theme">
+              <span className="theme-group">
+                <span className="theme-ic">{theme === "light" ? "☀️" : "🌙"}</span>
+                <span className="lbl">{theme === "light" ? "Light" : "Dark"}</span>
               </span>
-            </div>
-          )}
+              <span className="sw" />
+            </button>
+          </div>
+
+          <UserMenu user={user ?? null} />
         </header>
 
         <div
@@ -230,6 +309,12 @@ function App() {
           {route.name === "notifications" && <Notifications />}
           {route.name === "integrations" && <Integrations />}
           {route.name === "audit" && <AuditLogs />}
+          {route.name === "ai-requirement" && <AiRequirement />}
+          {route.name === "invoices" && <Invoices />}
+          {route.name === "widgets" && <Widgets />}
+          {route.name === "ai-chat" && <AiChat />}
+          {route.name === "ai-voice-bot" && <AiVoiceBot />}
+          {route.name === "profile" && <Profile />}
         </div>
 
         <footer className="footer">
@@ -251,13 +336,11 @@ function App() {
   );
 }
 
-function initials(name: string): string {
-  return name
-    .trim()
-    .split(/\s+/)
-    .slice(0, 2)
-    .map((p) => p[0]?.toUpperCase() ?? "")
-    .join("");
+// PWA: register the offline shell service worker (no-op on unsupported hosts).
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("/sw.js").catch(() => undefined);
+  });
 }
 
 createRoot(document.getElementById("root")!).render(

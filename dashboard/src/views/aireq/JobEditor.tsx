@@ -31,6 +31,7 @@ export default function JobEditor({
   const isNew = !job.title;
   const [draft, setDraft] = useState<JobReq>(isNew ? { ...job, status: "draft" } : job);
   const [skillsText, setSkillsText] = useState(job.skills.join(", "));
+  const [panelsText, setPanelsText] = useState((job.interviewPanels ?? []).join(", "));
   const [step, setStep] = useState(0);
   const [flowView, setFlowView] = useState<"list" | "flow">("list");
   const [publishNow, setPublishNow] = useState(false);
@@ -48,9 +49,11 @@ export default function JobEditor({
       return;
     }
     const skills = skillsText.split(",").map((s) => s.trim()).filter(Boolean);
+    const interviewPanels = panelsText.split(",").map((s) => s.trim()).filter(Boolean);
     onSave({
       ...draft,
       skills,
+      interviewPanels,
       status: publishNow ? "published" : draft.status,
       ctcMin: Number(draft.ctcMin) || 0,
       ctcMax: Number(draft.ctcMax) || 0,
@@ -163,6 +166,25 @@ export default function JobEditor({
                   <label className="lbl">Required skills — comma separated (drives AI resume screening)</label>
                   <input className="input" value={skillsText} onChange={(e) => setSkillsText(e.target.value)} placeholder="React, TypeScript, Node.js, REST APIs" />
                   {skillCount > 0 && <div className="jr-hint">✓ {skillCount} skill{skillCount === 1 ? "" : "s"} will be matched against resumes.</div>}
+                </div>
+
+                <div className="jr-sec full">👥 Interview &amp; availability</div>
+                <div className="full">
+                  <label className="lbl">Interview panel — comma separated (used for stage action items)</label>
+                  <input className="input" value={panelsText} onChange={(e) => setPanelsText(e.target.value)} placeholder="e.g. Priya Sharma, Arjun Nair" />
+                  {panelsText.trim().split(",").map((s) => s.trim()).filter(Boolean).length > 0 && (
+                    <div className="jr-hint">✓ {panelsText.trim().split(",").map((s) => s.trim()).filter(Boolean).length} panelist(s) will be offered for interview stages.</div>
+                  )}
+                </div>
+                <div className="full">
+                  <label className="lbl">Interviewer availability / scheduling notes</label>
+                  <textarea
+                    className="input"
+                    rows={2}
+                    value={draft.availability}
+                    onChange={(e) => set({ availability: e.target.value })}
+                    placeholder="e.g. Mon–Fri 2–6 PM IST; panel free on Thu/Fri mornings"
+                  />
                 </div>
               </div>
             </section>

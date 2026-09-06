@@ -1,9 +1,10 @@
 import { useState } from "react";
 import { Badge, Button, Card } from "../../components";
 import {
-  aiEvaluate, Candidate, EVAL_ICON, FALLOUT_ID, FALLOUT_NAME, HistoryEntry, JobReq, MODE_LABEL,
-  StageEval, demoCandidates, nid,
+  aiEvaluate, Candidate, EVAL_ICON, FALLOUT_ID, FALLOUT_NAME, HistoryEntry, JobReq, MODE_LABEL, StageEval, nid,
 } from "./model";
+import { demoCandidates } from "./demo";
+import CandidateCard from "./CandidateCard";
 import { screenArrival } from "./screen";
 
 /** Visual animated pipeline flow — dynamically renders all stages as connected nodes. */
@@ -65,8 +66,6 @@ type Form = { name: string; email: string; phone: string; resume: string };
 export default function Board({ job, onChange }: { job: JobReq; onChange: (j: JobReq) => void }) {
   const [dragId, setDragId] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState<string | null>(null);
-  const [openCand, setOpenCand] = useState<string | null>(null);
-  const [scoring, setScoring] = useState<{ id: string; value: string } | null>(null);
   const [adding, setAdding] = useState(false);
   const [form, setForm] = useState<Form>({ name: "", email: "", phone: "", resume: "" });
   const [copiedLink, setCopiedLink] = useState(false);
@@ -82,6 +81,10 @@ export default function Board({ job, onChange }: { job: JobReq; onChange: (j: Jo
     onChange({ ...job, candidates: job.candidates.map((c) => (c.id === candId ? fn(c) : c)) });
   }
 
+  function move(candId: string, next: Candidate) {
+    applyToAll(() => next, candId);
+  }
+
   /** AI evaluate the candidate at their current stage (AI / AI+Human stages). */
   function runAI(candId: string) {
     const c = job.candidates.find((x) => x.id === candId);
@@ -92,34 +95,28 @@ export default function Board({ job, onChange }: { job: JobReq; onChange: (j: Jo
     const failName = stage.failLabel ?? `${stage.name} Failed`;
     if (stage.evalType === "ai_human") {
       // AI recommends; a human confirms or overrides before any movement.
-      applyToAll(
-        (x) => ({
-          ...x,
-          pendingAI: ev,
-          history: [...x.history, hist(stage.name, "note", `🤖 AI recommends ${ev.score}% — ${ev.recommendation}`)],
-        }),
-        candId,
-      );
+      move(candId, {
+        ...c,
+        pendingAI: ev,
+        history: [...c.history, hist(stage.name, "note", `🤖 AI recommends ${ev.score}% — ${ev.recommendation}`)],
+      });
       return;
     }
     const next = job.stages[idx + 1];
     const pass = ev.score >= stage.criteria;
     const isHire = pass && next && next.id === job.stages[job.stages.length - 1].id;
-    applyToAll(
-      (x) => ({
-        ...x,
-        match: x.match ?? (idx === 0 ? ev.score : x.match),
-        scores: { ...x.scores, [stage.id]: ev.score },
-        evals: { ...x.evals, [stage.id]: ev },
-        stageId: pass ? next.id : FALLOUT_ID,
-        history: [
-          ...x.history,
-          hist(stage.name, pass ? (isHire ? "hired" : "passed") : "fallout",
-            pass ? `AI ${ev.score}% ≥ ${stage.criteria}% → ${isHire ? "HIRED 🎉" : next.name}` : `AI ${ev.score}% < ${stage.criteria}% — ${failName}`),
-        ],
-      }),
-      candId,
-    );
+    move(candId, {
+      ...c,
+      match: c.match ?? (idx === 0 ? ev.score : c.match),
+      scores: { ...c.scores, [stage.id]: ev.score },
+      evals: { ...c.evals, [stage.id]: ev },
+      stageId: pass ? next.id : FALLOUT_ID,
+      history: [
+        ...c.history,
+        hist(stage.name, pass ? (isHire ? "hired" : "passed") : "fallout",
+          pass ? `AI ${ev.score}% ≥ ${stage.criteria}% → ${isHire ? "HIRED 🎉" : next.name}` : `AI ${ev.score}% < ${stage.criteria}% — ${failName}`),
+      ],
+    });
   }
 
   /** Human decision on an AI+Human stage: accept the AI recommendation or override it. */
@@ -133,26 +130,23 @@ export default function Board({ job, onChange }: { job: JobReq; onChange: (j: Jo
     const pass = accept && ev.score >= stage.criteria;
     const isHire = pass && next && next.id === job.stages[job.stages.length - 1].id;
     const failName = stage.failLabel ?? `${stage.name} Failed`;
-    applyToAll(
-      (x) => ({
-        ...x,
-        pendingAI: undefined,
-        scores: { ...x.scores, [stage.id]: ev.score },
-        evals: { ...x.evals, [stage.id]: { ...ev, by: "ai_human" } },
-        stageId: pass ? next.id : FALLOUT_ID,
-        history: [
-          ...x.history,
-          hist(stage.name, pass ? (isHire ? "hired" : "passed") : "fallout",
-            pass
-              ? `Human confirmed AI ${ev.score}% → ${isHire ? "HIRED 🎉" : next.name}`
-              : accept ? `AI ${ev.score}% < ${stage.criteria}% — ${failName}` : `Human overrode AI recommendation — ${failName}`),
-        ],
-      }),
-      candId,
-    );
+    move(candId, {
+      ...c,
+      pendingAI: undefined,
+      scores: { ...c.scores, [stage.id]: ev.score },
+      evals: { ...c.evals, [stage.id]: { ...ev, by: "ai_human" } },
+      stageId: pass ? next.id : FALLOUT_ID,
+      history: [
+        ...c.history,
+        hist(stage.name, pass ? (isHire ? "hired" : "passed") : "fallout",
+          pass
+            ? `Human confirmed AI ${ev.score}% → ${isHire ? "HIRED 🎉" : next.name}`
+            : accept ? `AI ${ev.score}% < ${stage.criteria}% — ${failName}` : `Human overrode AI recommendation — ${failName}`),
+      ],
+    });
   }
 
-  /** Record a human score for the candidate's current stage → auto pass/fallout. */
+  /** Record a human second-opinion score for the candidate's current stage → auto pass/fallout. */
   function submitScore(candId: string, raw: string) {
     const c = job.candidates.find((x) => x.id === candId);
     const idx = c ? stageIdx(c.stageId) : -1;
@@ -166,26 +160,22 @@ export default function Board({ job, onChange }: { job: JobReq; onChange: (j: Jo
     const ev: StageEval = {
       at: new Date().toISOString(), by: "human", score: value,
       skillsMatched: 0, skillsTotal: 0, experience: 0, education: 0,
-      missing: [], strengths: [`Human interview score ${value}%`],
+      missing: [], strengths: [`Human 2nd-opinion score ${value}%`],
       concerns: pass ? [] : [`Below the ${stage.criteria}% gate`],
       recommendation: pass ? `Move to ${next?.name ?? "next stage"}` : `Do not advance — ${failName}`,
     };
-    applyToAll(
-      (x) => ({
-        ...x,
-        scores: { ...x.scores, [stage.id]: value },
-        evals: { ...x.evals, [stage.id]: ev },
-        pendingAI: undefined,
-        stageId: pass ? next.id : FALLOUT_ID,
-        history: [
-          ...x.history,
-          hist(stage.name, pass ? (isHire ? "hired" : "passed") : "fallout",
-            pass ? `Human scored ${value}% ≥ ${stage.criteria}% → ${isHire ? "HIRED 🎉" : next.name}` : `Human scored ${value}% — ${failName}`),
-        ],
-      }),
-      candId,
-    );
-    setScoring(null);
+    move(candId, {
+      ...c,
+      scores: { ...c.scores, [stage.id]: value },
+      evals: { ...c.evals, [stage.id]: ev },
+      pendingAI: undefined,
+      stageId: pass ? next.id : FALLOUT_ID,
+      history: [
+        ...c.history,
+        hist(stage.name, pass ? (isHire ? "hired" : "passed") : "fallout",
+          pass ? `2nd opinion scored ${value}% ≥ ${stage.criteria}% → ${isHire ? "HIRED 🎉" : next.name}` : `2nd opinion scored ${value}% — ${failName}`),
+      ],
+    });
   }
 
   /** Drag & drop: forward = gated by criteria; backward/fallout = HR override. */
@@ -241,10 +231,18 @@ export default function Board({ job, onChange }: { job: JobReq; onChange: (j: Jo
     setAdding(false);
   }
 
-
   const hiredCount = job.stages.length
     ? job.candidates.filter((c) => c.stageId === job.stages[job.stages.length - 1].id).length
     : 0;
+
+  const cardHandlers = {
+    onRunAI: runAI,
+    onConfirm: confirmAI,
+    onSubmitScore: submitScore,
+    onFallout: (candId: string) => drop(candId, FALLOUT_ID),
+    onDragStart: (candId: string) => setDragId(candId),
+    onDragEnd: () => { setDragId(null); setDragOver(null); },
+  };
 
   return (
     <div>
@@ -312,8 +310,6 @@ export default function Board({ job, onChange }: { job: JobReq; onChange: (j: Jo
       <PipelineFlow job={job} />
 
       <div className="kanban">
-
-
         {job.stages.map((s) => {
           const inStage = job.candidates.filter((c) => c.stageId === s.id);
           const isLast = s.id === job.stages[job.stages.length - 1].id;
@@ -332,97 +328,7 @@ export default function Board({ job, onChange }: { job: JobReq; onChange: (j: Jo
               <div className="jr-crit-tag" title={`Pass criteria: ${s.criteria}%`}>{EVAL_ICON[s.evalType]} · gate ≥ {s.criteria}%</div>
               <div className="kanban-cards">
                 {inStage.map((c) => (
-                  <div
-                    key={c.id}
-                    className="kanban-card"
-                    draggable
-                    onDragStart={() => setDragId(c.id)}
-                    onDragEnd={() => { setDragId(null); setDragOver(null); }}
-                    onClick={() => setOpenCand(openCand === c.id ? null : c.id)}
-                  >
-                    <b>{c.name}</b>
-                    <em>{c.email || c.phone || "—"}</em>
-                    {c.match != null && <div className="jr-match"><span style={{ width: `${c.match}%` }} /></div>}
-                    <div className="jr-mini">{c.match != null ? `AI match ${c.match}%` : "not screened"}</div>
-                    {openCand === c.id && (
-                      <div className="jr-detail" onClick={(e) => e.stopPropagation()}>
-                        <b>Journey</b>
-                        <div className="jr-journey">
-                          {job.stages.map((st) => {
-                            const done = c.scores[st.id] != null;
-                            const cur = st.id === c.stageId;
-                            return (
-                              <div key={st.id} className={`jr-step ${done ? "done" : cur ? "cur" : ""}`}>
-                                <span className="jr-step-ic">{done ? "✅" : cur ? "🔵" : "⚪"}</span>
-                                <span className="jr-step-lbl">{st.name}{done ? ` — ${c.scores[st.id]}%` : ""}</span>
-                              </div>
-                            );
-                          })}
-                        </div>
-                        {job.applyFields.filter((f) => c.answers[f.id]).length > 0 && (
-                          <>
-                            <b>Application answers</b>
-                            {job.applyFields.filter((f) => c.answers[f.id]).map((f) => (
-                              <div key={f.id} className="jr-ans"><b>{f.label}:</b> {c.answers[f.id]}</div>
-                            ))}
-                          </>
-                        )}
-                        {(() => {
-                          const ev = c.pendingAI ?? c.evals[c.stageId]
-                            ?? [...job.stages].reverse().map((st) => c.evals[st.id]).find(Boolean);
-                          if (!ev) return <p className="jr-resume">{c.resume || "—"}</p>;
-                          return (
-                            <div className="jr-eval">
-                              <div className="chips" style={{ margin: "4px 0" }}>
-                                <span className="chip on">Overall {ev.score}%</span>
-                                {ev.skillsTotal > 0 && <span className="chip">Skills {ev.skillsMatched}/{ev.skillsTotal}</span>}
-                                {ev.experience > 0 && <span className="chip">Experience {ev.experience}%</span>}
-                                {ev.education > 0 && <span className="chip">Education {ev.education}%</span>}
-                                {ev.by === "human" && <span className="chip">🧑 human</span>}
-                                {ev.by === "ai_human" && <span className="chip">🤝 AI + Human</span>}
-                              </div>
-                              {ev.missing.length > 0 && <div className="jr-mini">Missing: {ev.missing.join(", ")}</div>}
-                              {ev.strengths.map((s, i) => <div key={`s${i}`} className="jr-mini">✅ {s}</div>)}
-                              {ev.concerns.map((s, i) => <div key={`c${i}`} className="jr-mini">⚠️ {s}</div>)}
-                              <div className="jr-mini jr-reco">💡 {ev.recommendation}</div>
-                            </div>
-                          );
-                        })()}
-                        <b>Resume</b>
-                        <p className="jr-resume">{c.resume || "—"}</p>
-                      </div>
-                    )}
-                    {openCand === c.id && !isLast && s.criteria > 0 && (
-                      <div className="jr-actions" onClick={(e) => e.stopPropagation()}>
-                        {s.evalType !== "human" && !c.pendingAI && (
-                          <button onClick={() => runAI(c.id)}>🤖 AI evaluate</button>
-                        )}
-                        {s.evalType === "ai_human" && c.pendingAI && (
-                          <>
-                            <button onClick={() => confirmAI(c.id, true)}>🤝 Accept AI ({c.pendingAI.score}%)</button>
-                            <button className="danger" onClick={() => confirmAI(c.id, false)}>✕ Override</button>
-                          </>
-                        )}
-                        {s.evalType === "human" && (scoring?.id === c.id ? (
-                          <>
-                            <input
-                              autoFocus
-                              className="input"
-                              type="number" min={0} max={100}
-                              placeholder="score %"
-                              value={scoring.value}
-                              onChange={(e) => setScoring({ id: c.id, value: e.target.value })}
-                              onKeyDown={(e) => { if (e.key === "Enter") submitScore(c.id, scoring.value); }}
-                            />
-                            <button onClick={() => submitScore(c.id, scoring.value)}>✓</button>
-                          </>
-                        ) : (
-                          <button onClick={() => setScoring({ id: c.id, value: "" })}>📝 Score {s.name}</button>
-                        ))}
-                        <button className="danger" onClick={() => drop(c.id, FALLOUT_ID)}>✕ not qualified</button>
-                      </div>
-                    )}
-                  </div>
+                  <CandidateCard key={c.id} job={job} candidate={c} stage={s} isLast={isLast} {...cardHandlers} />
                 ))}
               </div>
             </div>
@@ -430,57 +336,95 @@ export default function Board({ job, onChange }: { job: JobReq; onChange: (j: Jo
         })}
 
         {/* Fallout lane */}
-        <div
-          className={`kanban-col jr-fallout${dragOver === FALLOUT_ID ? " over" : ""}`}
-          onDragOver={(e) => { e.preventDefault(); setDragOver(FALLOUT_ID); }}
-          onDragLeave={() => setDragOver((o) => (o === FALLOUT_ID ? null : o))}
-          onDrop={(e) => { e.preventDefault(); setDragOver(null); if (dragId) drop(dragId, FALLOUT_ID); setDragId(null); }}
-        >
-          <div className="kanban-head" style={{ borderTopColor: "var(--red)" }}>
-            <input className="stage-name" value={FALLOUT_NAME} readOnly />
-            <span className="count">{job.candidates.filter((c) => c.stageId === FALLOUT_ID).length}</span>
-          </div>
-          <div className="jr-crit-tag">fallout — where &amp; why</div>
-          <div className="kanban-cards">
-            {job.candidates.filter((c) => c.stageId === FALLOUT_ID).map((c) => {
-              const f = [...c.history].reverse().find((h) => h.result === "fallout");
-              return (
-                <div key={c.id} className="kanban-card" draggable onDragStart={() => setDragId(c.id)} onDragEnd={() => setDragId(null)}>
-                  <b>{c.name}</b>
-                  <em>fell at {f?.stage ?? "?"}</em>
-                  <div className="jr-mini">{f?.note ?? ""}</div>
-                  {openCand === c.id && (
-                    <div className="jr-detail" onClick={(e) => e.stopPropagation()}>
-                      <b>History</b>
-                      {c.history.map((h, i) => (
-                        <div key={i} className={`jr-hist ${h.result}`}>{h.stage} · {h.note}</div>
-                      ))}
-                    </div>
-                  )}
-                  <div className="jr-actions" onClick={(e) => e.stopPropagation()}>
-                    <button onClick={() => setOpenCand(openCand === c.id ? null : c.id)}>🕘 history</button>
-                    <button
-                      onClick={() => {
-                        const applied = job.stages[0];
-                        applyToAll((x) => ({ ...x, stageId: applied.id, history: [...x.history, hist(applied.name, "reinstated", "Re-opened by HR")] }), c.id);
-                      }}
-                    >
-                      ↩ re-open
-                    </button>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
+        <FalloutColumn
+          job={job}
+          onChange={onChange}
+          dragOver={dragOver === FALLOUT_ID}
+          onDragOver={setDragOver}
+          onCardDragStart={(candId) => setDragId(candId)}
+          onDragEnd={() => { setDragId(null); setDragOver(null); }}
+          onDrop={() => { if (dragId) drop(dragId, FALLOUT_ID); setDragId(null); setDragOver(null); }}
+        />
 
         <div className="kanban-col add" style={{ minWidth: 0 }}>
           <div className="sub" style={{ fontSize: 12 }}>
-            💡 Drag cards forward only after scoring a round. Backward drags are HR overrides and are logged in candidate history.
+            💡 Drag cards forward only after scoring a round. Backward drags are HR overrides and are logged in candidate history.<br /><br />
+            ✍️ Every stage offers a <b>2nd-opinion manual score</b> beside the AI validation.
           </div>
         </div>
       </div>
     </div>
   );
 }
+
+/** Not-Qualified lane — why each candidate fell, with re-open override. */
+function FalloutColumn({ job, onChange, dragOver, onDragOver, onCardDragStart, onDragEnd, onDrop }: {
+  job: JobReq;
+  onChange: (j: JobReq) => void;
+  dragOver: boolean;
+  onDragOver: (v: string | null) => void;
+  onCardDragStart: (candId: string) => void;
+  onDragEnd: () => void;
+  onDrop: () => void;
+}) {
+  const [openId, setOpenId] = useState<string | null>(null);
+  const hist = (stage: string, result: HistoryEntry["result"], note: string): HistoryEntry => ({
+    at: new Date().toISOString(), stage, result, note,
+  });
+  const fallout = job.candidates.filter((c) => c.stageId === FALLOUT_ID);
+  return (
+    <div
+      className={`kanban-col jr-fallout${dragOver ? " over" : ""}`}
+      onDragOver={(e) => { e.preventDefault(); onDragOver(FALLOUT_ID); }}
+      onDragLeave={() => onDragOver(null)}
+      onDrop={(e) => { e.preventDefault(); onDragOver(null); onDrop(); }}
+    >
+      <div className="kanban-head" style={{ borderTopColor: "var(--red)" }}>
+        <input className="stage-name" value={FALLOUT_NAME} readOnly />
+        <span className="count">{fallout.length}</span>
+      </div>
+      <div className="jr-crit-tag">fallout — where &amp; why</div>
+      <div className="kanban-cards">
+        {fallout.map((c) => {
+          const f = [...c.history].reverse().find((h) => h.result === "fallout");
+          const open = openId === c.id;
+          return (
+            <div key={c.id} className="kanban-card" draggable
+              onDragStart={() => onCardDragStart(c.id)}
+              onDragEnd={onDragEnd}
+              onClick={() => setOpenId(open ? null : c.id)}
+            >
+              <b>{c.name}</b>
+              <em>fell at {f?.stage ?? "?"}</em>
+              <div className="jr-mini">{f?.note ?? ""}</div>
+              {open && (
+                <div className="jr-detail" onClick={(e) => e.stopPropagation()}>
+                  <b>History</b>
+                  {c.history.map((h, i) => (
+                    <div key={i} className={`jr-hist ${h.result}`}>{h.stage} · {h.note}</div>
+                  ))}
+                </div>
+              )}
+              <div className="jr-actions" onClick={(e) => e.stopPropagation()}>
+                <button onClick={() => setOpenId(open ? null : c.id)}>🕘 history</button>
+                <button onClick={() => {
+                  const applied = job.stages[0];
+                  onChange({
+                    ...job,
+                    candidates: job.candidates.map((x) => x.id === c.id
+                      ? { ...x, stageId: applied.id, history: [...x.history, hist(applied.name, "reinstated", "Re-opened by HR")] }
+                      : x),
+                  });
+                }}>
+                  ↩ re-open
+                </button>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 

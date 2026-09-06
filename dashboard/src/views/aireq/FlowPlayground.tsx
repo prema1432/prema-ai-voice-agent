@@ -6,7 +6,9 @@ import ReactFlow, {
 import "reactflow/dist/style.css";
 import StageSidebar from "./StageSidebar";
 import StageNode from "./StageNode";
+import StageProcessEditor from "./StageProcessEditor";
 import { type JobReq, type Stage, EVAL_COLOR, DIFFICULTY_CONFIG, DEFAULT_MAIL } from "./model";
+import { defaultProcessFor } from "./process";
 
 /** Vertical spacing between pipeline rows — used to snap drag-reorder. */
 const ROW_H = 140;
@@ -69,7 +71,7 @@ export default function FlowPlayground({ job, onChange }: { job: JobReq; onChang
     if (!raw) return;
     const preset = JSON.parse(raw) as { name: string; icon: string; evalType: Stage["evalType"]; difficulty: Stage["difficulty"]; criteria: number };
     const id = `st_${Date.now().toString(36)}`;
-    const ns: Stage = { id, name: preset.name, icon: preset.icon, evalType: preset.evalType, difficulty: preset.difficulty, criteria: preset.criteria, failLabel: `${preset.name} Failed`, mail: { ...DEFAULT_MAIL } };
+    const ns: Stage = { id, name: preset.name, icon: preset.icon, evalType: preset.evalType, difficulty: preset.difficulty, criteria: preset.criteria, failLabel: `${preset.name} Failed`, mail: { ...DEFAULT_MAIL }, process: defaultProcessFor(preset.name) };
     const nj = { ...job, stages: [...job.stages.slice(0, -1), ns, job.stages[job.stages.length - 1]] };
     onChange(nj); syncFromStages(nj.stages); setSelected(id);
   }, [job, onChange, syncFromStages]);
@@ -138,6 +140,22 @@ export default function FlowPlayground({ job, onChange }: { job: JobReq; onChang
                 </div>
                 <div className="jr-field"><label>Fail label</label>
                   <input className="input" value={selectedStage.failLabel} onChange={(e) => updateStage(selectedStage.id, { failLabel: e.target.value })} />
+                </div>
+                <div className="jr-field"><label>Action item when candidate advances</label>
+                  <input
+                    className="input"
+                    value={selectedStage.action ?? ""}
+                    onChange={(e) => updateStage(selectedStage.id, { action: e.target.value })}
+                    placeholder="e.g. Send email + schedule interview panel"
+                  />
+                  <span className="jr-hint">Shown on the board and appended to the candidate's pass history.</span>
+                </div>
+                <div className="jr-proc-wrap">
+                  <div className="jr-proc-title">🧪 What this stage evaluates</div>
+                  <StageProcessEditor
+                    value={selectedStage.process ?? defaultProcessFor(selectedStage.name)}
+                    onChange={(p) => updateStage(selectedStage.id, { process: p })}
+                  />
                 </div>
               </div>
             </div>

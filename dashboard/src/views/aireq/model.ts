@@ -79,6 +79,10 @@ export const DEFAULT_MAIL: MailConfig = {
   nextStage: { subject: "Congratulations! Moving to {{nextStage}}", body: "Hi {{name}},\n\nYou passed {{stage}} ({{score}}%). Moving to {{nextStage}}.\n\n— Prema AI" },
 };
 
+import { enrichWithProcess, type EvalDetail, type EvalQA, type StageProcess, defaultProcessFor } from "./process";
+
+export type { EvalDetail, EvalQA, StageProcess, ProcessKind, StageQuestion } from "./process";
+
 export interface Stage {
   id: string;
   name: string;
@@ -88,6 +92,10 @@ export interface Stage {
   failLabel?: string;
   difficulty: Difficulty;
   mail: MailConfig;
+  /** What this stage actually evaluates: screen fields, MCQ bank, or an AI-interview Q&A. */
+  process?: StageProcess;
+  /** Action item triggered when a candidate advances past this stage (email, panel, call, …). */
+  action?: string;
 }
 
 /** Rich AI/human evaluation attached to a candidate per stage. */
@@ -105,6 +113,10 @@ export interface StageEval {
   strengths: string[];
   concerns: string[];
   recommendation: string;
+  /** Per-dimension breakdown produced by the stage process (screening). */
+  detail?: EvalDetail[];
+  /** Per-question answers & points for MCQ / AI-interview stages. */
+  qa?: EvalQA[];
 }
 
 export interface HistoryEntry {
@@ -193,6 +205,10 @@ export interface JobReq {
   additionalReq: string;
   skills: string[];
   minExp: number;
+  /** Interview panel member names used to configure stage action items. */
+  interviewPanels: string[];
+  /** Interviewer availability windows / scheduling notes (free text). */
+  availability: string;
   status: "draft" | "published" | "closed";
   createdAt: string;
   stages: Stage[];
@@ -252,11 +268,32 @@ export const MODE_LABEL: Record<WorkMode, string> = {
   onsite: "🚶 Onsite",
 };
 
+/** Default "what happens next" action per stage — recruiters can edit per stage. */
+export const DEFAULT_STAGE_ACTIONS: Record<string, string> = {
+  Applied: "Send application-received email",
+  "Resume Screening": "Email screening result + shortlist confirmation",
+  "Aptitude Round": "Email test link + share result",
+  "Coding MCQ": "Email MCQ result + next steps",
+  "Coding Assignment": "Email assignment link + schedule review",
+  "Live Q&A": "Schedule interview panel + send calendar invite",
+  "HR Interview": "Email HR round invite + panel confirmation",
+  "Technical Interview": "Schedule technical panel + share JD",
+  "Final Interview": "Email final round invite + panel availability",
+  Hired: "Send offer letter + onboarding checklist",
+};
+
+/** Default action text for a stage name (falls back to a generic reminder). */
+export function defaultStageAction(name: string): string {
+  return DEFAULT_STAGE_ACTIONS[name] ?? `Schedule ${name || "next step"} for the candidate`;
+}
+
 /** Default stage template — order matters; "Hired" must be last. */
 export function defaultStages(): Stage[] {
   const mk = (name: string, icon: string, criteria: number, evalType: EvalType, difficulty: Difficulty, failLabel?: string): Stage => ({
     id: nid("st"), name, icon, criteria, evalType, difficulty, failLabel,
     mail: { ...DEFAULT_MAIL },
+    process: defaultProcessFor(name),
+    action: defaultStageAction(name),
   });
   return [
     mk("Applied", "📥", 0, "ai", "easy", "Not Eligible"),
@@ -293,6 +330,8 @@ export function newJob(): JobReq {
     additionalReq: "",
     skills: [],
     minExp: 0,
+    interviewPanels: [],
+    availability: "",
     status: "draft",
     createdAt: new Date().toISOString(),
     applyFields: defaultApplyFields(),
@@ -303,11 +342,18 @@ export function newJob(): JobReq {
 
 const KEY = "prema.hiring.jobs";
 
-/** Fill defaults for jobs saved before custom application fields existed. */
+/** Fill defaults for jobs saved before custom fields / stage processes existed. */
 export function normalizeJob(j: JobReq): JobReq {
   return {
     ...j,
     applyFields: Array.isArray(j.applyFields) && j.applyFields.length ? j.applyFields : defaultApplyFields(),
+    interviewPanels: Array.isArray((j as JobReq).interviewPanels) ? (j as JobReq).interviewPanels : [],
+    availability: (j as JobReq).availability ?? "",
+    stages: (j.stages ?? []).map((s) => ({
+      ...s,
+      process: s.process ?? defaultProcessFor(s.name),
+      action: s.action ?? defaultStageAction(s.name),
+    })),
     candidates: (j.candidates ?? []).map((c) => ({ ...c, answers: (c as Candidate).answers ?? {} })),
   };
 }
@@ -371,20 +417,41 @@ export function aiEvaluate(job: JobReq, stage: Stage, cand: Candidate): StageEva
   const { score: base, matched, missing } = analyzeResume(job, cand.resume);
   const idx = job.stages.findIndex((s) => s.id === stage.id);
   const variance = idx <= 1 ? 0 : (hashPct(cand.id + stage.id) % 25) - 12;
-  const score = Math.max(5, Math.min(98, base + variance));
+  const base2 = Math.max(5, Math.min(98, base + variance));
   const years = /(\d+)\+?\s*(years|yrs)/i.exec(cand.resume);
   const expYears = years ? Number(years[1]) : 0;
   const experience = Math.min(100, Math.round((expYears / Math.max(1, job.minExp || 1)) * 100));
   const education = /b\.?tech|b\.?e\b|m\.?tech|mca|bca|bachelor|master|degree/i.test(cand.resume) ? 100 : 60;
+  const depthPct = Math.min(100, Math.round((cand.resume.split(/\s+/).filter(Boolean).length / 220) * 100));
+
+  // Process-aware scoring: screen keeps the resume score; MCQ / AI-interview
+  // stages blend the resume base with a question-by-question breakdown.
+  const enriched = stage.process
+    ? enrichWithProcess(stage.process, cand.id + stage.id, base2, {
+        resume: cand.resume, skillsMatched: matched.length, skillsTotal: matched.length + missing.length,
+        experiencePct: experience, educationPct: education, depthPct,
+      })
+    : null;
+  const score = enriched?.score ?? base2;
+  const detail = enriched?.detail;
+  const qa = enriched?.qa;
+
   const next = job.stages[idx + 1];
   const pass = score >= stage.criteria;
   const strengths: string[] = [];
   if (matched.length) strengths.push(`Strong in ${matched.slice(0, 3).join(", ")}`);
   if (experience >= 100) strengths.push(`${expYears} yrs meets the ${job.minExp} yrs bar`);
   if (education === 100) strengths.push("Relevant degree");
+  if (qa && qa.length) {
+    const right = qa.filter((x) => x.result === "correct").length;
+    strengths.push(`${stage.name}: ${right}/${qa.length} answers correct`);
+  }
   const concerns: string[] = [];
   if (missing.length) concerns.push(`Missing skills: ${missing.join(", ")}`);
   if (experience < 100) concerns.push(`Experience ${expYears} yrs below ${job.minExp} yrs requirement`);
+  if (qa && qa.some((x) => x.result === "wrong")) {
+    concerns.push(`${stage.name}: ${qa.filter((x) => x.result === "wrong").length} answer(s) wrong`);
+  }
   if (!pass) concerns.push(`Overall ${score}% is under the ${stage.criteria}% gate`);
   const failName = stage.failLabel ?? `${stage.name} Failed`;
   return {
@@ -398,60 +465,14 @@ export function aiEvaluate(job: JobReq, stage: Stage, cand: Candidate): StageEva
     missing,
     strengths: strengths.length ? strengths : ["Application complete"],
     concerns,
+    detail,
+    qa,
     recommendation: pass
       ? next && next.id !== job.stages[job.stages.length - 1].id
         ? `Move to ${next.name}`
         : "Recommend for hire 🎉"
       : `Do not advance — ${score}% < ${stage.criteria}% (${failName})`,
   };
-}
-
-const DEMO: { name: string; email: string; phone: string; years: number; extra: string }[] = [
-  { name: "Aarav Sharma", email: "aarav@mail.com", phone: "91 90000 11111", years: 4, extra: "B.Tech CSE. Led React and Node services in production." },
-  { name: "Diya Patel", email: "diya@mail.com", phone: "91 90000 22222", years: 2, extra: "B.E. Information Technology. Built REST APIs and dashboards." },
-  { name: "Rohan Verma", email: "rohan@mail.com", phone: "91 90000 33333", years: 6, extra: "M.Tech. Mentored juniors, owned microservices and CI/CD." },
-  { name: "Sneha Reddy", email: "sneha@mail.com", phone: "91 90000 44444", years: 1, extra: "BCA graduate, eager learner, internship project experience." },
-  { name: "Kabir Singh", email: "kabir@mail.com", phone: "91 90000 55555", years: 3, extra: "B.Tech. Freelance full-stack projects and open source." },
-];
-
-/** Five ready-made candidates at varied pipeline positions (deterministic). */
-export function demoCandidates(job: JobReq): Candidate[] {
-  const applied = job.stages[0];
-  const screening = job.stages[1];
-  return DEMO.map((d, i) => {
-    const n = Math.max(1, job.skills.length);
-    const skills = job.skills.filter((_, si) => si % n !== (n - 1 - (i % n)) % n);
-    const resume = `${d.years} years of experience. Skills: ${skills.join(", ")}. ${d.extra}`;
-    const { score } = analyzeResume(job, resume);
-    const c: Candidate = {
-      id: nid("cand"),
-      name: d.name,
-      email: d.email,
-      phone: d.phone,
-      resume,
-      answers: {},
-      appliedAt: new Date(Date.now() - (i + 1) * 86400000).toISOString(),
-      stageId: applied.id,
-      match: score,
-      scores: {},
-      evals: {},
-      history: [{ at: new Date(Date.now() - (i + 1) * 86400000).toISOString(), stage: applied.name, result: "entered", note: "Applied via job link" }],
-    };
-    // Simulate the first two past AI screening with different outcomes.
-    if (i < 2) {
-      const crit = screening.criteria;
-      c.scores[applied.id] = score;
-      c.evals[applied.id] = aiEvaluate(job, screening, c);
-      if (score >= crit) {
-        c.stageId = screening.id;
-        c.history.push({ at: new Date().toISOString(), stage: applied.name, result: "passed", note: `AI match ${score}% ≥ ${crit}%` });
-      } else {
-        c.stageId = FALLOUT_ID;
-        c.history.push({ at: new Date().toISOString(), stage: applied.name, result: "fallout", note: `AI match ${score}% < ${crit}%` });
-      }
-    }
-    return c;
-  });
 }
 
 /** Aggregate funnel numbers for a job's board. */

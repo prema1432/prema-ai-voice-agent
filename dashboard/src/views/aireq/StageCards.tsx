@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { EvalType, Stage, EVAL_LABEL, EVAL_COLOR, EVAL_DESC, STAGE_PRESETS, DEFAULT_MAIL } from "./model";
+import StageProcessEditor from "./StageProcessEditor";
+import { defaultProcessFor } from "./process";
 
 export default function StageCards({
   stages,
@@ -11,13 +13,14 @@ export default function StageCards({
   const [dragIdx, setDragIdx] = useState<number | null>(null);
   const [overIdx, setOverIdx] = useState<number | null>(null);
   const [filter, setFilter] = useState("");
+  const [procFor, setProcFor] = useState<string | null>(null);
 
   const setStage = (id: string, patch: Partial<Stage>) =>
     onChange(stages.map((s) => (s.id === id ? { ...s, ...patch } : s)));
 
   const applyPreset = (id: string, name: string) => {
     const p = STAGE_PRESETS.find((x) => x.name.toLowerCase() === name.trim().toLowerCase());
-        if (p) onChange(stages.map((s) => (s.id === id ? { ...s, name: p.name, icon: p.icon, evalType: p.evalType, criteria: p.criteria } : s)));
+        if (p) onChange(stages.map((s) => (s.id === id ? { ...s, name: p.name, icon: p.icon, evalType: p.evalType, criteria: p.criteria, process: defaultProcessFor(p.name) } : s)));
     else onChange(stages.map((s) => (s.id === id ? { ...s, name } : s)));
   };
 
@@ -26,6 +29,11 @@ export default function StageCards({
     next.splice(next.length - 1, 0, stage);
     onChange(next);
   };
+
+  const stageFor = (name: string): Stage => ({
+    id: `st_${Date.now().toString(36)}`, name, icon: "📋", evalType: "ai", criteria: 70, difficulty: "medium",
+    failLabel: `${name || "Stage"} Failed`, mail: { ...DEFAULT_MAIL }, process: defaultProcessFor(name),
+  });
 
   const removeStage = (idx: number) => {
     if (idx === 0 || idx === stages.length - 1) return;
@@ -166,12 +174,36 @@ export default function StageCards({
                 />
               </div>
 
+              {/* Action item on advance */}
+              <div className="jr-card-field">
+                <label className="lbl">Action item when candidate advances</label>
+                <input
+                  className="input"
+                  value={s.action ?? ""}
+                  onChange={(e) => setStage(s.id, { action: e.target.value })}
+                  placeholder="e.g. Send email + schedule interview panel"
+                />
+              </div>
+
+              {/* What this stage evaluates (dynamic process config) */}
+              <div className="jr-card-proc">
+                <button type="button" className={`jr-card-proc-btn${procFor === s.id ? " on" : ""}`} onClick={() => setProcFor(procFor === s.id ? null : s.id)}>
+                  🧪 {procFor === s.id ? "Hide what it evaluates" : "Set what this stage evaluates ▸"}
+                </button>
+                {procFor === s.id && (
+                  <StageProcessEditor
+                    value={s.process ?? defaultProcessFor(s.name)}
+                    onChange={(p) => setStage(s.id, { process: p })}
+                  />
+                )}
+              </div>
+
               {/* Card actions */}
               {!isEndpoint && (
                 <div className="jr-card-actions">
                   <button className="btn ghost sm" title="Move up" onClick={() => moveStage(i, -1)} disabled={i <= 1}>↑</button>
                   <button className="btn ghost sm" title="Move down" onClick={() => moveStage(i, 1)} disabled={i >= stages.length - 2}>↓</button>
-                  <button className="btn ghost sm" title="Add stage after" onClick={() => addStage({ id: `st_${Date.now().toString(36)}_${i}`, name: "New Stage", icon: "📋", evalType: "ai", criteria: 70, difficulty: "medium", mail: { ...DEFAULT_MAIL } })}>＋</button>
+                  <button className="btn ghost sm" title="Add stage after" onClick={() => addStage(stageFor("New Stage"))}>＋</button>
                   <button className="btn ghost sm danger" title="Remove" onClick={() => removeStage(i)}>🗑</button>
                 </div>
               )}
@@ -180,7 +212,7 @@ export default function StageCards({
         })}
 
         {/* Add new stage card */}
-        <div className="jr-card add-card" onClick={() => addStage({ id: `st_${Date.now().toString(36)}`, name: "New Stage", icon: "📋", evalType: "ai", criteria: 70, difficulty: "medium", mail: { ...DEFAULT_MAIL } })}>
+        <div className="jr-card add-card" onClick={() => addStage(stageFor("New Stage"))}>
           <span className="jr-add-icon">＋</span>
           <span className="jr-add-text">Add stage</span>
           <span className="jr-add-hint">before Hired</span>

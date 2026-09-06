@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Button } from "../../components";
 import { DEFAULT_MAIL, defaultStages, Stage, EVAL_COLOR, EVAL_LABEL } from "./model";
+import { defaultProcessFor } from "./process";
 import StageCards from "./StageCards";
 
 /** Quick-start stage templates. */
@@ -100,7 +101,7 @@ export default function StageBuilder({
                 key={t.name}
                 className="jr-template-card"
                 onClick={() => {
-                  onChange(t.stages.map((s) => ({ ...s, id: nid() })));
+                  onChange(t.stages.map((s) => ({ ...s, id: nid(), process: s.process ?? defaultProcessFor(s.name) })));
                   setShowTemplates(false);
                 }}
               >

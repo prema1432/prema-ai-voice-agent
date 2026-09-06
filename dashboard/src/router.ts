@@ -20,6 +20,11 @@ export type Route =
   | { name: "form-public"; slug: string }
   | { name: "job-public"; id: string }
   | { name: "ai-requirement" }
+  | { name: "aireq-new" }
+  | { name: "aireq-edit"; id: string }
+  | { name: "aireq-pipeline"; id: string }
+  | { name: "aireq-funnel"; id: string }
+  | { name: "aireq-share"; id: string }
   | { name: "stage-templates" }
   | { name: "invoices" }
   | { name: "widgets" }
@@ -56,6 +61,19 @@ export function parseRoute(path: string): Route {
   }
   if (parts[0] === "forms" && parts[1]) return { name: "form-builder", id: parts[1] };
   if (parts[0] === "forms") return { name: "forms" };
+  // AI Requirement module: each job view has its own URL.
+  //   /ai-requirement          → job list
+  //   /ai-requirement/new      → create job
+  //   /ai-requirement/job/:id  → pipeline  (default tab)
+  //   /ai-requirement/job/:id/:tab  (edit | funnel | share | pipeline)
+  if (parts[0] === "ai-requirement" && parts[1] === "new") return { name: "aireq-new" };
+  if (parts[0] === "ai-requirement" && parts[1] === "job" && parts[2]) {
+    const tab = parts[3] ?? "pipeline";
+    if (tab === "edit") return { name: "aireq-edit", id: parts[2] };
+    if (tab === "funnel") return { name: "aireq-funnel", id: parts[2] };
+    if (tab === "share") return { name: "aireq-share", id: parts[2] };
+    return { name: "aireq-pipeline", id: parts[2] };
+  }
   if (parts[0] === "ai-requirement") return { name: "ai-requirement" };
   if (parts[0] === "stage-templates") return { name: "stage-templates" };
   if (parts[0] === "invoices") return { name: "invoices" };

@@ -119,7 +119,9 @@ function isActive(routeName: string, key: string): boolean {
   if (key === "ai-chat") return routeName === "ai-chat";
   if (key === "ai-voice-bot") return routeName === "ai-voice-bot";
   if (key === "widgets") return routeName === "widgets";
-  if (key === "ai-requirement") return routeName === "ai-requirement" || routeName === "stage-templates";
+  if (key === "ai-requirement") {
+    return ["ai-requirement", "aireq-new", "aireq-edit", "aireq-pipeline", "aireq-funnel", "aireq-share", "stage-templates"].includes(routeName);
+  }
   if (key === "stage-templates") return routeName === "stage-templates";
   if (key === "invoices") return routeName === "invoices";
   return routeName === key;
@@ -300,7 +302,12 @@ function App() {
           {route.name === "notifications" && <Notifications />}
           {route.name === "integrations" && <Integrations />}
           {route.name === "audit" && <AuditLogs />}
-          {route.name === "ai-requirement" && <AiRequirement />}
+          {route.name === "ai-requirement" && <AiRequirement view={{ kind: "list" }} />}
+          {route.name === "aireq-new" && <AiRequirement view={{ kind: "editor" }} />}
+          {route.name === "aireq-edit" && <AiRequirement view={{ kind: "editor", id: route.id }} />}
+          {route.name === "aireq-pipeline" && <AiRequirement view={{ kind: "pipeline", id: route.id }} />}
+          {route.name === "aireq-funnel" && <AiRequirement view={{ kind: "funnel", id: route.id }} />}
+          {route.name === "aireq-share" && <AiRequirement view={{ kind: "share", id: route.id }} />}
           {route.name === "stage-templates" && <StageTemplates />}
           {route.name === "invoices" && <Invoices />}
           {route.name === "widgets" && <Widgets />}

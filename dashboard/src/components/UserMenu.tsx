@@ -40,19 +40,45 @@ export default function UserMenu({ user }: { user?: UserInfo | null }) {
 
   if (!user) {
     return (
-      <button className="btn ghost sm" onClick={() => navigate("")}>
-        Sign out →
-      </button>
+      <div className="um-wrap" ref={boxRef}>
+        <button className="um-trigger" onClick={() => setOpen((o) => !o)} title="Profile (backend offline)">
+          <span className="um-avatar">GU</span>
+          <span className="um-text">
+            <b>Guest</b>
+            <em>backend offline</em>
+          </span>
+          <span className={`um-caret ${open ? "on" : ""}`}>⌄</span>
+        </button>
+
+        {open && (
+          <div className="um-pop pop">
+            <div className="um-pop-head">
+              <span className="um-avatar lg">GU</span>
+              <div>
+                <b>Guest</b>
+                <em>Start the backend to load your profile</em>
+              </div>
+            </div>
+            <div className="um-menu">
+              <button onClick={() => { setOpen(false); navigate("profile"); }}>
+                👤 My profile
+              </button>
+            </div>
+            <button className="um-logout" onClick={logout}>
+              ⎋ Sign out
+            </button>
+          </div>
+        )}
+      </div>
     );
   }
 
   return (
     <div className="um-wrap" ref={boxRef}>
-      <button className="um-trigger" onClick={() => setOpen((o) => !o)} title={user.email}>
+      <button className="um-trigger" onClick={() => setOpen((o) => !o)} title={user.name}>
         <span className="um-avatar">{initials(user.name)}</span>
         <span className="um-text">
           <b>{user.name}</b>
-          <em>{user.email}</em>
         </span>
         <span className={`um-caret ${open ? "on" : ""}`}>⌄</span>
       </button>

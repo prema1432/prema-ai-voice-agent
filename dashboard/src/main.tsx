@@ -170,7 +170,6 @@ function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [routeKey]);
 
-  const llmKeySet = health?.llm_key_set === true;
   const backendUp = !err && health != null;
   const user = health?.user as { name: string; email: string } | undefined;
   const changeTheme = () => setTheme(toggleTheme());
@@ -247,22 +246,6 @@ function App() {
           );
         })}
 
-        <div className="sidebar-foot">
-          <span className="pill">
-            <span className={`dot ${llmKeySet ? "green" : "amber"}`} />
-            <span className="lbl">LLM key {llmKeySet ? "set" : "missing"}</span>
-          </span>
-          <span className="pill">
-            <span className={`dot ${backendUp ? "green" : "red"}`} />
-            <span className="lbl">backend {backendUp ? "online" : "unreachable"}</span>
-          </span>
-          {backendUp && (
-            <span className="pill">
-              <span className="dot blue" />
-              <span className="lbl">{String(health?.telephony ?? "unknown")}</span>
-            </span>
-          )}
-        </div>
       </aside>
 
       <main className="main">
@@ -321,11 +304,8 @@ function App() {
 
         <footer className="footer">
           <div className="foot-brand">
-            <span className="foot-mark">🎙️</span>
-            <div>
-              <b>Prema AI Voice Agent</b>
-              <span>Self-hosted AI calling for Indian numbers &amp; regional languages</span>
-            </div>
+            <b>🎙️ Prema AI Voice Agent</b>
+            <span>Self-hosted AI calling for Indian numbers &amp; regional languages</span>
           </div>
 
           <nav className="footer-links">

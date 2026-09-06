@@ -9,11 +9,42 @@ const fmtTok = (n: number) =>
 const fmtCost = (n: number) =>
   n >= 1 ? `$${n.toFixed(3)}` : n >= 0.001 ? `$${n.toFixed(5)}` : `$${n.toFixed(6)}`;
 
+/** One live system metric tile (green/red/amber dot + value). */
+function SysCell({ label, ok, value }: { label: string; ok: boolean | null; value: string }) {
+  return (
+    <div style={{ background: "var(--well)", border: "1px solid var(--border)", borderRadius: 12, padding: "10px 12px" }}>
+      <div style={{ fontSize: 11, color: "var(--text-faint)", marginBottom: 4 }}>{label}</div>
+      <div style={{ display: "flex", alignItems: "center", gap: 7, fontSize: 12.5, fontWeight: 650, wordBreak: "break-all" }}>
+        <span className={`dot ${ok === true ? "green" : ok === false ? "red" : "amber"}`} />
+        <span style={{ minWidth: 0 }}>{value}</span>
+      </div>
+    </div>
+  );
+}
+
 export default function LlmPage() {
   const [status, setStatus] = useState<LlmStatus | null>(null);
   const [usage, setUsage] = useState<LlmUsage | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [days, setDays] = useState(7);
+
+  // Live backend system data for the status panel (self-hosted stack).
+  const [sys, setSys] = useState<Record<string, unknown> | null>(null);
+  const [sysErr, setSysErr] = useState(false);
+  const [checkedAt, setCheckedAt] = useState("");
+  const ping = () =>
+    api
+      .health()
+      .then((h) => {
+        setSys(h);
+        setSysErr(false);
+        setCheckedAt(new Date().toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit", second: "2-digit" }));
+      })
+      .catch(() => setSysErr(true));
+
+  useEffect(() => {
+    ping();
+  }, []);
 
   useEffect(() => {
     api.llmStatus().then(setStatus).catch((e) => setErr(String(e)));
@@ -57,6 +88,39 @@ export default function LlmPage() {
       </div>
 
       {err && <div className="msg err">{err}</div>}
+
+      {/* Live backend system status */}
+      <Card style={{ marginBottom: 20 }}>
+        <div className="card-head">
+          <h3>🖥 System status</h3>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            {checkedAt && <span style={{ fontSize: 11, color: "var(--text-faint)" }}>checked {checkedAt}</span>}
+            <Button size="sm" variant="ghost" onClick={ping}>
+              ↻ Refresh
+            </Button>
+          </div>
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(185px, 1fr))", gap: 10 }}>
+          <SysCell
+            label="Backend API"
+            ok={!sysErr && sys != null}
+            value={sysErr ? "unreachable" : `${String(sys?.app ?? "API")} · ${String(sys?.env ?? "?")} env`}
+          />
+          <SysCell
+            label="LLM key (OpenRouter)"
+            ok={sys?.llm_key_set === true || status?.key_set === true}
+            value={sys?.llm_key_set === true || status?.key_set === true ? "set" : "missing"}
+          />
+          <SysCell
+            label="Telephony"
+            ok={String(sys?.telephony ?? "").includes("asterisk") ? true : sys != null ? false : null}
+            value={String(sys?.telephony ?? "unknown")}
+          />
+          <SysCell label="STT backend" ok={sys != null ? true : null} value={String(sys?.stt_backend ?? "—")} />
+          <SysCell label="TTS backend" ok={sys != null ? true : null} value={String(sys?.tts_backend ?? "—")} />
+          <SysCell label="VAD backend" ok={sys != null ? true : null} value={String(sys?.vad_backend ?? "—")} />
+        </div>
+      </Card>
 
       {/* Current model card */}
       <Card style={{ marginBottom: 20 }}>

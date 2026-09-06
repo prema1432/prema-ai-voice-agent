@@ -224,7 +224,9 @@ function JobCard({
         <button onClick={onPreview}>👁 preview</button>
         <button onClick={onShare} className={shareOpen ? "on" : ""}>🔗 share</button>
         <button onClick={onEdit}>✏️ edit</button>
-        <button onClick={onToggle}>{job.status === "published" ? "⏸ close" : "🚀 publish"}</button>
+        <button onClick={onToggle} className={job.status === "published" ? "soft" : "primary"}>
+          {job.status === "published" ? "⏸ close" : "🚀 publish"}
+        </button>
         <button className="danger" onClick={onDelete}>🗑</button>
       </div>
 

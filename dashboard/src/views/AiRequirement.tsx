@@ -40,12 +40,20 @@ export default function AiRequirement() {
   }
 
   if (editing) {
+    const creating = !editing.title;
     return (
       <div>
+        <button className="btn ghost sm" style={{ marginBottom: 10 }} onClick={() => setEditing(null)}>
+          ← All jobs
+        </button>
         <div className="page-head">
           <div>
-            <h2>🧠 AI Requirement — job setup</h2>
-            <div className="sub">Describe the role, then tune the pipeline stages and their pass criteria</div>
+            <h2>{creating ? "✨ Create a job requirement" : "✏️ Editing — " + editing.title}</h2>
+            <div className="sub">
+              {creating
+                ? "Three steps: describe the role → choose what to ask candidates → set the hiring rounds and gates."
+                : "Update the role, application form or pipeline stages — changes apply when you save."}
+            </div>
           </div>
         </div>
         <JobEditor

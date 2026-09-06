@@ -9,11 +9,14 @@ import { APPLY_FIELD_TYPES, ApplyField, ApplyFieldType, JobReq, nid } from "./mo
 export default function ApplyFieldsEditor({
   job,
   onChange,
+  defaultOpen = false,
 }: {
   job: JobReq;
   onChange: (fields: ApplyField[]) => void;
+  /** Start with the field list expanded (used inside the setup wizard). */
+  defaultOpen?: boolean;
 }) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(defaultOpen);
   const fields = job.applyFields;
 
   function update(id: string, patch: Partial<ApplyField>) {

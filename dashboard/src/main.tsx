@@ -96,21 +96,13 @@ const NAV_GROUPS: { label: string; icon: string; items: NavItem[] }[] = [
 const FOOT_LINKS: { label: string; path: string }[] = [
   { label: "Dashboard", path: "app" },
   { label: "Campaigns", path: "campaigns" },
-  { label: "Forms", path: "forms" },
-  { label: "AI Requirement", path: "ai-requirement" },
-  { label: "Invoices", path: "invoices" },
-  { label: "Widgets", path: "widgets" },
-  { label: "AI Chat Bot", path: "ai-chat" },
-  { label: "AI Voice Bot", path: "ai-voice-bot" },
   { label: "CRM Pipeline", path: "crm" },
   { label: "Voice Lab", path: "voicelab" },
-  { label: "Agents", path: "agents" },
-  { label: "Call Logs", path: "calls" },
-  { label: "LLM & Cost", path: "llm" },
-  { label: "LLM Models", path: "llm/models" },
+  { label: "AI Chat Bot", path: "ai-chat" },
+  { label: "AI Voice Bot", path: "ai-voice-bot" },
+  { label: "Forms", path: "forms" },
+  { label: "Widgets", path: "widgets" },
   { label: "Integrations", path: "integrations" },
-  { label: "Notifications", path: "notifications" },
-  { label: "Audit Logs", path: "audit" },
   { label: "Profile", path: "profile" },
 ];
 
@@ -182,6 +174,16 @@ function App() {
   const backendUp = !err && health != null;
   const user = health?.user as { name: string; email: string } | undefined;
   const changeTheme = () => setTheme(toggleTheme());
+
+  // Live IST clock for the footer status strip (Indian-market product).
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    const t = setInterval(() => setNow(new Date()), 30000);
+    return () => clearInterval(t);
+  }, []);
+  const istTime = new Intl.DateTimeFormat("en-IN", {
+    hour: "2-digit", minute: "2-digit", hour12: true, timeZone: "Asia/Kolkata",
+  }).format(now);
 
   // Marketing landing page: standalone, animated, clean URLs (no "#" fragments).
   if (route.name === "landing") {
@@ -318,10 +320,14 @@ function App() {
         </div>
 
         <footer className="footer">
-          <div>
-            <b>🎙️ Prema AI Voice Agent</b>
-            <span>Self-hosted AI calling for Indian numbers &amp; regional languages · OpenRouter LLM · MongoDB</span>
+          <div className="foot-brand">
+            <span className="foot-mark">🎙️</span>
+            <div>
+              <b>Prema AI Voice Agent</b>
+              <span>Self-hosted AI calling for Indian numbers &amp; regional languages</span>
+            </div>
           </div>
+
           <nav className="footer-links">
             {FOOT_LINKS.map((l) => (
               <button key={l.path} onClick={() => navigate(l.path)}>
@@ -329,7 +335,19 @@ function App() {
               </button>
             ))}
           </nav>
-          <div className="footer-legal">© 2026 Prema AI Voice Agent · Built by Premanath Talamarla</div>
+
+          <div className="foot-status">
+            <span className="foot-chip">
+              <span className={`dot ${backendUp ? "green" : "red"}`} />
+              {backendUp ? "All systems operational" : "Backend offline"}
+            </span>
+            <span className="foot-chip">🕒 {istTime} IST</span>
+            <span className="foot-chip">⚡ OpenRouter · MongoDB · Asterisk</span>
+          </div>
+
+          <div className="footer-legal">
+            © {new Date().getFullYear()} Prema AI Voice Agent · Crafted with 💜 by Premanath Talamarla
+          </div>
         </footer>
       </main>
     </div>

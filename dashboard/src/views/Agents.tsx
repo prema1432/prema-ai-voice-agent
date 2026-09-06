@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { AgentDirectoryItem, AgentMeta, LANGUAGES, api } from "../api";
 import { Avatar, Badge, Button, Card, EmptyState, LangPill, Stars } from "../components";
+import ViewToggle, { useView } from "../components/ViewToggle";
 import { navigate } from "../router";
 
 export default function Agents() {
@@ -9,6 +10,7 @@ export default function Agents() {
   const [err, setErr] = useState<string | null>(null);
   const [q, setQ] = useState("");
   const [specFilter, setSpecFilter] = useState<string>("");
+  const [view, setView] = useView("agents");
   const [showCreate, setShowCreate] = useState(false);
 
   const load = () => {
@@ -91,6 +93,7 @@ export default function Agents() {
             <option key={s} value={s}>{s}</option>
           ))}
         </select>
+        <ViewToggle value={view} onChange={setView} />
       </div>
 
       {err && <div className="msg err">{err}</div>}
@@ -99,6 +102,16 @@ export default function Agents() {
         <Card>
           <EmptyState icon="🤖" title="No agents yet" sub="Create your first agent — pick a name, gender and specialization." />
         </Card>
+      ) : view === "rows" ? (
+        <AgentsTable
+          agents={filtered}
+          onCall={(a) => navigate(`voicelab/${encodeURIComponent(a.id)}`)}
+          onDelete={async (a) => {
+            if (!window.confirm(`Delete agent ${a.name}?`)) return;
+            await api.deleteAgent(a.id).catch((e) => setErr(String(e)));
+            load();
+          }}
+        />
       ) : (
         <div className="stagger" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(268px, 1fr))", gap: 16 }}>
           {filtered.map((a) => {
@@ -171,6 +184,68 @@ export default function Agents() {
         />
       )}
     </div>
+  );
+}
+
+/* ── Agent team table (Rows view) ───────────────────────── */
+function AgentsTable({
+  agents,
+  onCall,
+  onDelete,
+}: {
+  agents: AgentDirectoryItem[];
+  onCall: (a: AgentDirectoryItem) => void;
+  onDelete: (a: AgentDirectoryItem) => Promise<void>;
+}) {
+  return (
+    <Card style={{ padding: 0, overflow: "hidden" }}>
+      <div style={{ overflowX: "auto" }}>
+        <table className="table" style={{ margin: 0 }}>
+          <thead>
+            <tr>
+              <th>Agent</th>
+              <th>Specialization</th>
+              <th>Language</th>
+              <th style={{ textAlign: "right" }}>Calls</th>
+              <th style={{ textAlign: "right" }}>Leads done</th>
+              <th>Rating</th>
+              <th style={{ textAlign: "right" }}>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {agents.map((a) => (
+              <tr key={a.id}>
+                <td>
+                  <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
+                    <Avatar name={a.name} avatar={a.avatar} accent={a.accent} size={30} />
+                    <div>
+                      <div style={{ fontWeight: 650, fontSize: 13 }}>{a.name}</div>
+                      <span className={`gender-tag ${a.gender}`}>{a.gender}</span>
+                    </div>
+                  </div>
+                </td>
+                <td>
+                  <Badge tone="blue">{a.specialization}</Badge>
+                  {a.description && (
+                    <div style={{ fontSize: 11, color: "var(--text-muted)", maxWidth: 240, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                      {a.description}
+                    </div>
+                  )}
+                </td>
+                <td>{a.primary_language ? <LangPill code={a.primary_language} /> : "—"}</td>
+                <td style={{ textAlign: "right" }} className="num">{a.stats?.calls ?? 0}</td>
+                <td style={{ textAlign: "right" }} className="num">{a.stats?.leads_completed ?? 0}</td>
+                <td><Stars rating={a.stats?.rating ?? 3.0} /></td>
+                <td style={{ textAlign: "right", whiteSpace: "nowrap" }}>
+                  <Button size="sm" variant="primary" onClick={() => onCall(a)}>🎤 Call</Button>{" "}
+                  <Button size="sm" variant="danger" onClick={() => onDelete(a)}>🗑</Button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </Card>
   );
 }
 

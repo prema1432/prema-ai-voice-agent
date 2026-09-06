@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { NotificationItem, api } from "../api";
 import { Badge, Button, Card, EmptyState, fmtDate } from "../components";
+import ViewToggle, { useView } from "../components/ViewToggle";
 
 const KIND_ICON: Record<string, string> = {
   call: "📞",
@@ -20,6 +21,7 @@ export default function Notifications() {
   const [items, setItems] = useState<NotificationItem[] | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [onlyUnread, setOnlyUnread] = useState(false);
+  const [view, setView] = useView("notifications");
 
   const load = useCallback(() => {
     api.listNotifications(onlyUnread).then(setItems).catch((e) => setErr(String(e)));
@@ -56,6 +58,7 @@ export default function Notifications() {
           <Button size="sm" variant={onlyUnread ? "primary" : "default"} onClick={() => setOnlyUnread((v) => !v)}>
             {onlyUnread ? "Unread only" : `All (${unread} unread)`}
           </Button>
+          <ViewToggle value={view} onChange={setView} />
         </div>
       </div>
 
@@ -67,37 +70,55 @@ export default function Notifications() {
         <Card>
           <EmptyState icon="🔕" title="No notifications" sub="Campaign start/stop, hot leads, DND requests and integration events will show here." />
         </Card>
+      ) : view === "cards" ? (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: 12 }}>
+          {items.map((n) => (
+            <NotifCard key={n.id} n={n} onRead={markRead} />
+          ))}
+        </div>
       ) : (
         <div className="stack">
           {items.map((n) => (
-            <Card key={n.id} className={n.read ? "notif read" : "notif unread"} style={{ padding: "12px 16px" }}>
-              <div style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
-                <div style={{ fontSize: 20 }}>{KIND_ICON[n.kind] ?? "🔔"}</div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-                    <b style={{ fontSize: 13.5 }}>{n.title}</b>
-                    {!n.read && <Badge tone="blue">new</Badge>}
-                    {n.ts && <span style={{ marginLeft: "auto", fontSize: 11.5, color: "var(--text-faint)" }}>{fmtDate(n.ts)}</span>}
-                  </div>
-                  <div style={{ fontSize: 13, color: "var(--text-muted)", marginTop: 3, lineHeight: 1.55 }}>{n.body}</div>
-                  {n.channels && (
-                    <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 8 }}>
-                      {Object.entries(n.channels).map(([ch, st]) => (
-                        <Badge key={ch} tone={channelTone(st)}>
-                          {ch === "in_app" ? "🖥 in-app" : ch} · {st.replace("_", " ")}
-                        </Badge>
-                      ))}
-                    </div>
-                  )}
-                </div>
-                {!n.read && (
-                  <Button size="sm" variant="ghost" onClick={() => markRead(n.id)} title="Mark read">✓</Button>
-                )}
-              </div>
-            </Card>
+            <NotifCard key={n.id} n={n} onRead={markRead} />
           ))}
         </div>
       )}
     </div>
+  );
+}
+
+function NotifCard({
+  n,
+  onRead,
+}: {
+  n: NotificationItem;
+  onRead: (id: string) => void;
+}) {
+  return (
+    <Card className={n.read ? "notif read" : "notif unread"} style={{ padding: "12px 16px" }}>
+      <div style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
+        <div style={{ fontSize: 20 }}>{KIND_ICON[n.kind] ?? "🔔"}</div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+            <b style={{ fontSize: 13.5 }}>{n.title}</b>
+            {!n.read && <Badge tone="blue">new</Badge>}
+            {n.ts && <span style={{ marginLeft: "auto", fontSize: 11.5, color: "var(--text-faint)" }}>{fmtDate(n.ts)}</span>}
+          </div>
+          <div style={{ fontSize: 13, color: "var(--text-muted)", marginTop: 3, lineHeight: 1.55 }}>{n.body}</div>
+          {n.channels && (
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 8 }}>
+              {Object.entries(n.channels).map(([ch, st]) => (
+                <Badge key={ch} tone={channelTone(st)}>
+                  {ch === "in_app" ? "🖥 in-app" : ch} · {st.replace("_", " ")}
+                </Badge>
+              ))}
+            </div>
+          )}
+        </div>
+        {!n.read && (
+          <Button size="sm" variant="ghost" onClick={() => onRead(n.id)} title="Mark read">✓</Button>
+        )}
+      </div>
+    </Card>
   );
 }

@@ -290,6 +290,29 @@
 }
 .mp-test:disabled { opacity: 0.55; cursor: default; }
 
+/* ── Cards / rows view toggle (used across list pages) ──── */
+.view-toggle {
+  display: inline-flex; gap: 2px; flex: none; padding: 2px;
+  background: var(--well); border: 1px solid var(--border); border-radius: 10px;
+}
+.view-toggle button {
+  display: inline-flex; align-items: center; gap: 5px;
+  border: none; background: transparent; color: var(--text-muted);
+  font-size: 12px; font-weight: 600; font-family: inherit; cursor: pointer;
+  padding: 5px 10px; border-radius: 8px; transition: background 0.15s, color 0.15s;
+}
+.view-toggle button:hover { color: var(--text); }
+.view-toggle button.on {
+  background: linear-gradient(135deg, var(--accent-1), var(--accent-2));
+  color: #fff; box-shadow: 0 2px 8px var(--glow);
+}
+.toolbar .view-toggle { margin-left: auto; }
+.link {
+  background: none; border: none; padding: 0; cursor: pointer;
+  color: var(--accent-1); font-family: inherit;
+}
+.link:hover { color: var(--accent-2); text-decoration: underline; }
+
 /* ── Modern campaign list ─────────────────────────────────── */
 .toolbar {
   display: flex; align-items: center; gap: 10px; flex-wrap: wrap;

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { api, Campaign } from "../api";
 import { Badge, Button, Card, EmptyState, LangPill, Progress, StatusBadge } from "../components";
+import ViewToggle, { useView } from "../components/ViewToggle";
 import { navigate } from "../router";
 import CampaignModal from "./campaigns/CampaignModal";
 import { ScheduleChip } from "./campaigns/RunPlanner";
@@ -23,6 +24,7 @@ export default function Campaigns() {
   const [filter, setFilter] = useState<(typeof FILTERS)[number]>("all");
   const [showNew, setShowNew] = useState(false);
   const [editing, setEditing] = useState<Campaign | null>(null);
+  const [view, setView] = useView("campaigns");
 
   const load = useCallback(async () => {
     try {
@@ -105,9 +107,28 @@ export default function Campaigns() {
             </button>
           ))}
         </div>
+        <ViewToggle value={view} onChange={setView} />
       </div>
 
-      {filtered.length === 0 ? (
+      {view === "rows" ? (
+        filtered.length === 0 ? (
+          <Card>
+            <EmptyState
+              icon="🗂️"
+              title={campaigns.length === 0 ? "No campaigns yet" : "Nothing matches"}
+              sub="Try a different search term or status filter."
+            />
+          </Card>
+        ) : (
+          <RowsTable
+            campaigns={filtered}
+            busy={busy}
+            onAct={act}
+            onEdit={(c) => setEditing(c)}
+            onOpen={(id) => navigate(`campaigns/${id}`)}
+          />
+        )
+      ) : filtered.length === 0 ? (
         <Card>
           <EmptyState
             icon="🗂️"
@@ -253,5 +274,90 @@ export default function Campaigns() {
         />
       )}
     </div>
+  );
+}
+
+function statsOf(c: Campaign): { total: number; done: number; pct: number; calls: number } {
+  const st = (c.stats ?? {}) as CampaignStats;
+  const by = st.by_status ?? {};
+  const total = st.total ?? 0;
+  const done = (by.completed ?? 0) + (by.failed ?? 0) + (by.dnd ?? 0) + (by.skipped ?? 0);
+  const calls = Object.values(st.calls ?? {}).reduce((s, v) => s + Number(v), 0);
+  return { total, done, pct: total > 0 ? (done / total) * 100 : 0, calls };
+}
+
+/** Dense table layout for the campaigns list (Rows view). */
+function RowsTable({
+  campaigns,
+  busy,
+  onAct,
+  onEdit,
+  onOpen,
+}: {
+  campaigns: Campaign[];
+  busy: boolean;
+  onAct: (c: Campaign, action: "start" | "pause" | "delete" | "cancel") => void;
+  onEdit: (c: Campaign) => void;
+  onOpen: (id: string) => void;
+}) {
+  return (
+    <Card style={{ padding: 0, overflow: "hidden" }}>
+      <div style={{ overflowX: "auto" }}>
+        <table className="table" style={{ margin: 0 }}>
+          <thead>
+            <tr>
+              <th>Status</th>
+              <th>Campaign</th>
+              <th>Agent</th>
+              <th>Lang</th>
+              <th style={{ textAlign: "right" }}>Leads</th>
+              <th style={{ textAlign: "right" }}>Done</th>
+              <th style={{ textAlign: "right" }}>Calls</th>
+              <th>Created</th>
+              <th style={{ textAlign: "right" }}>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {campaigns.map((c) => {
+              const s = statsOf(c);
+              return (
+                <tr key={c.id}>
+                  <td><StatusBadge status={c.status} /></td>
+                  <td>
+                    <button className="link" style={{ fontWeight: 700, fontSize: 13, textAlign: "left" }} onClick={() => onOpen(c.id)}>
+                      {c.name}
+                    </button>
+                    {c.description && (
+                      <div style={{ fontSize: 11.5, color: "var(--text-muted)", maxWidth: 260, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                        {c.description}
+                      </div>
+                    )}
+                  </td>
+                  <td style={{ fontSize: 12.5 }}>{c.agent?.name ?? "—"}</td>
+                  <td>{c.languages?.[0] ? <LangPill code={c.languages[0]} /> : "—"}</td>
+                  <td style={{ textAlign: "right" }} className="num">{s.total}</td>
+                  <td style={{ textAlign: "right" }} className="num">{s.done} <span style={{ color: "var(--text-faint)", fontSize: 11 }}>({Math.round(s.pct)}%)</span></td>
+                  <td style={{ textAlign: "right" }} className="num">{s.calls}</td>
+                  <td style={{ fontSize: 12, whiteSpace: "nowrap" }}>
+                    {c.created_at ? new Date(c.created_at).toLocaleDateString() : "—"}
+                  </td>
+                  <td style={{ textAlign: "right", whiteSpace: "nowrap" }}>
+                    {c.status === "running" ? (
+                      <Button size="sm" disabled={busy} onClick={() => onAct(c, "pause")}>⏸</Button>
+                    ) : c.status === "scheduled" ? (
+                      <Button size="sm" variant="danger" disabled={busy} onClick={() => onAct(c, "cancel")} title="Cancel scheduled run">✕</Button>
+                    ) : (
+                      <Button size="sm" variant="primary" disabled={busy} onClick={() => onAct(c, "start")} title="Start dialer">▶</Button>
+                    )}{" "}
+                    <Button size="sm" onClick={() => onEdit(c)} title="Edit">✎</Button>{" "}
+                    <Button size="sm" variant="danger" disabled={busy} onClick={() => onAct(c, "delete")} title="Delete">🗑</Button>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </Card>
   );
 }

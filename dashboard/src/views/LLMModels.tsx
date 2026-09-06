@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { LlmCatalog, LlmModel, LlmUsage, api } from "../api";
 import { Badge, Button, Card, EmptyState } from "../components";
+import ViewToggle, { useView } from "../components/ViewToggle";
 import { navigate } from "../router";
 
 const fmtCtx = (n: number) =>
@@ -25,6 +26,7 @@ export default function LLMModels() {
   const [busy, setBusy] = useState<string | null>(null);
   const [testing, setTesting] = useState<string | null>(null);
   const [results, setResults] = useState<Record<string, string>>({});
+  const [view, setView] = useView("llm-models");
 
   const load = () => {
     api.llmModels().then(setCat).catch((e) => setErr(String(e)));
@@ -170,12 +172,62 @@ export default function LLMModels() {
           <option value="prompt">Sort: price ↑</option>
           <option value="name">Sort: name</option>
         </select>
+        <ViewToggle value={view} onChange={setView} />
       </div>
 
       {models.length === 0 ? (
         <Card>
           <EmptyState icon="🔍" title="No models match" sub="Try clearing the search or switching the filter." />
         </Card>
+      ) : view === "rows" ? (
+        <div style={{ overflowX: "auto" }}>
+          <table className="table">
+            <thead>
+              <tr>
+                <th>Model</th>
+                <th style={{ textAlign: "right" }}>Context</th>
+                <th style={{ textAlign: "right" }}>In /1M</th>
+                <th style={{ textAlign: "right" }}>Out /1M</th>
+                <th style={{ textAlign: "right" }}>Calls (30d)</th>
+                <th style={{ textAlign: "right" }}>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {models.map((m) => {
+                const stats = perModel.get(m.id);
+                const isDef = m.id === defaultId;
+                return (
+                  <tr key={m.id}>
+                    <td>
+                      <div style={{ display: "flex", alignItems: "center", gap: 7, flexWrap: "wrap" }}>
+                        {isDef && <Badge tone="violet">default</Badge>}
+                        {m.free ? <Badge tone="green">🆓</Badge> : <Badge tone="amber">paid</Badge>}
+                        <button className="link" style={{ fontWeight: 650, fontSize: 13, textAlign: "left" }} onClick={() => navigate(`llm/model/${encodeURIComponent(m.id)}`)}>
+                          {m.id}
+                        </button>
+                      </div>
+                      {m.name && m.name !== m.id && (
+                        <div style={{ fontSize: 11, color: "var(--text-muted)" }}>{m.name}</div>
+                      )}
+                    </td>
+                    <td style={{ textAlign: "right" }} className="num">{fmtCtx(m.context_length)}</td>
+                    <td style={{ textAlign: "right" }} className="num">{fmtPrice(m.pricing.prompt)}</td>
+                    <td style={{ textAlign: "right" }} className="num">{fmtPrice(m.pricing.completion)}</td>
+                    <td style={{ textAlign: "right" }} className="num">{stats?.calls ?? 0}{stats?.cost && stats.cost > 0 ? ` · $${stats.cost.toFixed(3)}` : ""}</td>
+                    <td style={{ textAlign: "right", whiteSpace: "nowrap" }}>
+                      <Button size="sm" variant={isDef ? "default" : "primary"} disabled={isDef || busy === m.id} onClick={() => setDefault(m)}>
+                        {isDef ? "✓ Default" : "Set default"}
+                      </Button>{" "}
+                      <Button size="sm" variant="ghost" disabled={testing === m.id} onClick={() => test(m)} title="Test model">
+                        {testing === m.id ? <span className="spinner" style={{ width: 13, height: 13 }} /> : "⚡"}
+                      </Button>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
       ) : (
         <div
           style={{

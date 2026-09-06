@@ -1,4 +1,5 @@
 export type Route =
+  | { name: "landing" }
   | { name: "dashboard" }
   | { name: "campaigns" }
   | { name: "campaign-detail"; id: string }
@@ -20,7 +21,11 @@ export type Route =
 
 export function parseRoute(path: string): Route {
   const clean = path.replace(/^\/+|\/+$/g, "");
-  const parts = clean.split("/").filter(Boolean);
+  let parts = clean.split("/").filter(Boolean);
+  if (parts.length === 0) return { name: "landing" };
+  if (parts[0] === "f" && parts[1]) return { name: "form-public", slug: parts[1] };
+  // The dashboard app lives under /app/** — clean history-API URLs, no "#".
+  if (parts[0] === "app") parts = parts.slice(1);
   if (parts.length === 0) return { name: "dashboard" };
   if (parts[0] === "campaigns" && parts[1]) return { name: "campaign-detail", id: parts[1] };
   if (parts[0] === "calls" && parts[1]) return { name: "call-detail", id: parts[1] };

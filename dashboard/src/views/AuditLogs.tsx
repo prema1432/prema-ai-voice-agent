@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { AuditEntry, api } from "../api";
 import { Badge, Card, EmptyState, fmtDate } from "../components";
+import ViewToggle, { useView } from "../components/ViewToggle";
 
 const ACTION_TONE = (a: string): "green" | "amber" | "red" | "gray" | "blue" | "violet" =>
   a.includes("delete") || a === "call.ended"
@@ -23,6 +24,8 @@ export default function AuditLogs() {
   const [action, setAction] = useState("");
   const [entity, setEntity] = useState("");
   const [limit, setLimit] = useState(100);
+  const [q, setQ] = useState("");
+  const [view, setView] = useView("audit");
 
   const load = (params: Record<string, string> = {}) => {
     const p: Record<string, string> = { limit: String(limit), ...params };
@@ -38,6 +41,15 @@ export default function AuditLogs() {
   }, [limit]);
 
   const actions = useMemo(() => Object.keys(stats).sort(), [stats]);
+
+  const shown = useMemo(() => {
+    if (!rows) return [];
+    const needle = q.trim().toLowerCase();
+    if (!needle) return rows;
+    return rows.filter((r) =>
+      `${r.action} ${r.actor} ${r.entity_type ?? ""} ${r.entity_id ?? ""} ${JSON.stringify(r.meta ?? {})}`.toLowerCase().includes(needle),
+    );
+  }, [rows, q]);
 
   return (
     <div>
@@ -69,11 +81,44 @@ export default function AuditLogs() {
 
       {err && <div className="msg err">{err}</div>}
 
+      <div className="toolbar">
+        <div className="search">
+          <input
+            className="input"
+            placeholder="Search actions, actors, entities, details…"
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+          />
+        </div>
+        <ViewToggle value={view} onChange={setView} />
+      </div>
+
       <Card>
         {rows === null ? (
           <div style={{ padding: "30px 0", textAlign: "center", color: "var(--text-muted)" }}>Loading…</div>
         ) : rows.length === 0 ? (
           <EmptyState icon="🧾" title="Nothing logged yet" sub="Start campaigns, move leads, or test integrations — every action lands here." />
+        ) : view === "cards" ? (
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: 12 }}>
+            {shown.map((r) => (
+              <div key={r.id} className="card" style={{ padding: "12px 14px", display: "flex", flexDirection: "column", gap: 7 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                  <Badge tone={ACTION_TONE(r.action)}>{r.action}</Badge>
+                  <span style={{ marginLeft: "auto", fontSize: 11, color: "var(--text-faint)" }}>{fmtDate(r.ts)}</span>
+                </div>
+                <div style={{ fontSize: 12.5 }}>
+                  <b>{r.actor}</b>
+                  <span style={{ color: "var(--text-muted)" }}>
+                    {" · "}{r.entity_type ?? "—"}
+                    {r.entity_id && <span className="mono" style={{ fontSize: 10.5, color: "var(--text-faint)", marginLeft: 4 }}>{r.entity_id.slice(0, 10)}…</span>}
+                  </span>
+                </div>
+                <div style={{ fontSize: 11.5, color: "var(--text-muted)", wordBreak: "break-word" }}>
+                  {JSON.stringify(r.meta ?? {})}
+                </div>
+              </div>
+            ))}
+          </div>
         ) : (
           <div style={{ overflowX: "auto" }}>
             <table className="table">
@@ -87,7 +132,7 @@ export default function AuditLogs() {
                 </tr>
               </thead>
               <tbody>
-                {rows.map((r) => (
+                {shown.map((r) => (
                   <tr key={r.id}>
                     <td style={{ whiteSpace: "nowrap", fontSize: 12, color: "var(--text-muted)" }}>{fmtDate(r.ts)}</td>
                     <td><Badge tone={ACTION_TONE(r.action)}>{r.action}</Badge></td>

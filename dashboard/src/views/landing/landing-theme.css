@@ -1,0 +1,187 @@
+/* ============================================================
+   Landing page — light/dark theme tokens + scroll FX components
+   The dashboard's data-theme attribute (theme.ts, shared
+   localStorage) drives both palettes; the landing keeps the
+   same premium brand look in each.
+   ============================================================ */
+:root,
+[data-theme="light"] {
+  --l-bg: #f4f6fe;
+  --l-bg-img:
+    radial-gradient(900px 500px at 85% -10%, rgba(168, 85, 247, 0.1), transparent 60%),
+    radial-gradient(700px 420px at -10% 10%, rgba(99, 102, 241, 0.13), transparent 60%);
+  --l-panel: rgba(255, 255, 255, 0.8);
+  --l-panel-2: rgba(255, 255, 255, 0.62);
+  --l-border: rgba(18, 28, 58, 0.1);
+  --l-border-strong: rgba(18, 28, 58, 0.22);
+  --l-text: #10152a;
+  --l-muted: #5a6478;
+  --l-cyan: #0e7490;
+  --l-green: #059669;
+  --l-grad: linear-gradient(120deg, #6366f1, #a855f7 45%, #ec4899 75%, #06b6d4);
+  --l-glass: rgba(255, 255, 255, 0.82);
+  --l-nav-hover: rgba(15, 20, 40, 0.06);
+  --l-orb-a: rgba(99, 102, 241, 0.42);
+  --l-orb-b: rgba(217, 70, 239, 0.32);
+  --l-orb-c: rgba(34, 211, 238, 0.3);
+  --l-mock: linear-gradient(160deg, #ffffff, #eef1fb);
+  --l-mock-border: rgba(18, 28, 58, 0.14);
+  --l-mock-shadow: 0 40px 80px rgba(30, 40, 100, 0.18);
+  --l-mock-inset: rgba(255, 255, 255, 0.6);
+  --l-wave: rgba(18, 28, 58, 0.05);
+  --l-chip-bg: rgba(255, 255, 255, 0.94);
+  --l-chip-border: rgba(18, 28, 58, 0.14);
+  --l-chip-shadow: 0 18px 40px rgba(30, 40, 100, 0.22);
+  --l-ms-up: #4338ca;
+  --l-ms-up-border: rgba(99, 102, 241, 0.4);
+  --l-score-text: #047857;
+  --l-score-bg: rgba(5, 150, 105, 0.12);
+  --l-score-border: rgba(5, 150, 105, 0.35);
+  --l-feat-hover-bg: #ffffff;
+  --l-feat-hover-border: rgba(18, 28, 58, 0.22);
+  --l-pipe-bg: linear-gradient(160deg, #ffffff, #eef1fb);
+  --l-code: #3730a3;
+  --l-code-bg: rgba(99, 102, 241, 0.1);
+  --l-code-border: rgba(99, 102, 241, 0.35);
+  --l-band-bg: linear-gradient(180deg, #ffffff, #eef1fb);
+  --l-band-tint:
+    radial-gradient(120% 130% at 12% 0%, rgba(99, 102, 241, 0.13), transparent 55%),
+    radial-gradient(120% 130% at 100% 100%, rgba(217, 70, 239, 0.12), transparent 55%);
+  --l-metric-cell: rgba(255, 255, 255, 0.72);
+  --l-band-sub: #5a6478;
+  --l-band-li: #3f4763;
+  --l-step-num: rgba(15, 20, 40, 0.07);
+  --l-footer-bg: linear-gradient(180deg, transparent, rgba(226, 232, 255, 0.7));
+}
+
+[data-theme="dark"] {
+  --l-bg: #070a14;
+  --l-bg-img:
+    radial-gradient(900px 500px at 85% -10%, rgba(217, 70, 239, 0.1), transparent 60%),
+    radial-gradient(700px 420px at -10% 10%, rgba(99, 102, 241, 0.14), transparent 60%);
+  --l-panel: rgba(255, 255, 255, 0.05);
+  --l-panel-2: rgba(255, 255, 255, 0.02);
+  --l-border: rgba(255, 255, 255, 0.09);
+  --l-border-strong: rgba(255, 255, 255, 0.18);
+  --l-text: #eef2ff;
+  --l-muted: #9aa7c7;
+  --l-cyan: #22d3ee;
+  --l-green: #34d399;
+  --l-grad: linear-gradient(120deg, #818cf8, #c084fc 45%, #f472b6 75%, #22d3ee);
+  --l-glass: rgba(7, 10, 20, 0.72);
+  --l-nav-hover: rgba(255, 255, 255, 0.06);
+  --l-orb-a: rgba(99, 102, 241, 0.5);
+  --l-orb-b: rgba(217, 70, 239, 0.4);
+  --l-orb-c: rgba(34, 211, 238, 0.28);
+  --l-mock: linear-gradient(160deg, rgba(20, 26, 48, 0.92), rgba(13, 17, 32, 0.95));
+  --l-mock-border: rgba(255, 255, 255, 0.12);
+  --l-mock-shadow: 0 40px 80px rgba(2, 6, 16, 0.6);
+  --l-mock-inset: rgba(255, 255, 255, 0.08);
+  --l-wave: rgba(255, 255, 255, 0.03);
+  --l-chip-bg: rgba(16, 21, 38, 0.88);
+  --l-chip-border: rgba(255, 255, 255, 0.14);
+  --l-chip-shadow: 0 18px 40px rgba(2, 6, 16, 0.55);
+  --l-ms-up: #c7d2fe;
+  --l-ms-up-border: rgba(99, 102, 241, 0.4);
+  --l-score-text: #a7f3d0;
+  --l-score-bg: rgba(52, 211, 153, 0.08);
+  --l-score-border: rgba(52, 211, 153, 0.3);
+  --l-feat-hover-bg: rgba(255, 255, 255, 0.04);
+  --l-feat-hover-border: rgba(255, 255, 255, 0.18);
+  --l-pipe-bg: linear-gradient(160deg, rgba(18, 24, 44, 0.9), rgba(10, 14, 26, 0.9));
+  --l-code: #c7d2fe;
+  --l-code-bg: rgba(99, 102, 241, 0.1);
+  --l-code-border: rgba(99, 102, 241, 0.35);
+  --l-band-bg: linear-gradient(180deg, #0d1224, #0a0e1a);
+  --l-band-tint:
+    radial-gradient(120% 130% at 12% 0%, rgba(99, 102, 241, 0.2), transparent 55%),
+    radial-gradient(120% 130% at 100% 100%, rgba(217, 70, 239, 0.15), transparent 55%);
+  --l-metric-cell: rgba(255, 255, 255, 0.03);
+  --l-band-sub: #aab4d0;
+  --l-band-li: #d7dff3;
+  --l-step-num: rgba(255, 255, 255, 0.05);
+  --l-footer-bg: linear-gradient(180deg, transparent, rgba(13, 17, 32, 0.7));
+}
+
+/* ── Scroll progress bar (3D gradient, pinned to top) ──── */
+.scroll-progress {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  z-index: 120;
+  transform-origin: 0% 50%;
+  background: var(--l-grad);
+  box-shadow: 0 0 14px var(--l-code-border);
+}
+
+/* ── Header theme toggle ───────────────────────────────── */
+.ld-theme {
+  width: 40px;
+  height: 40px;
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  border-radius: 12px;
+  border: 1px solid var(--l-border);
+  background: var(--l-panel);
+  color: var(--l-text);
+  cursor: pointer;
+  transition: transform 0.15s, border-color 0.15s, box-shadow 0.15s;
+}
+.ld-theme:hover {
+  transform: translateY(-1px) scale(1.05);
+  border-color: var(--l-border-strong);
+  box-shadow: 0 8px 20px rgba(99, 102, 241, 0.2);
+}
+
+/* ── Scroll-down hint ──────────────────────────────────── */
+.scroll-hint {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 44px;
+  color: var(--l-muted);
+  font-size: 11.5px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+.scroll-hint .mouse {
+  width: 22px;
+  height: 34px;
+  border: 1.5px solid var(--l-border-strong);
+  border-radius: 12px;
+  position: relative;
+}
+.scroll-hint .wheel {
+  position: absolute;
+  top: 6px;
+  left: 50%;
+  width: 3px;
+  height: 6px;
+  margin-left: -1.5px;
+  border-radius: 3px;
+  background: var(--l-cyan);
+  animation: wheelDrop 1.8s ease-in-out infinite;
+}
+@keyframes wheelDrop {
+  0% { transform: translateY(0); opacity: 1; }
+  70% { transform: translateY(10px); opacity: 0; }
+  100% { transform: translateY(0); opacity: 0; }
+}
+
+/* ── Light-theme polish for the 3D hero mock ───────────── */
+[data-theme="light"] .orb { opacity: 0.42; }
+[data-theme="light"] .mock-live { color: #047857; }
+[data-theme="light"] .ld-brand-mark {
+  filter: drop-shadow(0 4px 14px rgba(99, 102, 241, 0.35));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .scroll-hint .wheel { animation: none; }
+  .ld-theme:hover { transform: none; }
+}

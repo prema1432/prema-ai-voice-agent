@@ -25,6 +25,7 @@ import Forms from "./views/Forms";
 import FormBuilder from "./views/FormBuilder";
 import FormSubmissions from "./views/FormSubmissions";
 import PublicForm from "./views/PublicForm";
+import Landing from "./views/landing/Landing";
 import "./styles.css";
 import "./platform.css";
 
@@ -41,7 +42,7 @@ function useRoute(): ReturnType<typeof parseRoute> {
 }
 
 const NAV = [
-  { key: "dashboard", label: "Dashboard", icon: "📊", path: "" },
+  { key: "dashboard", label: "Dashboard", icon: "📊", path: "app" },
   { key: "campaigns", label: "Campaigns", icon: "📋", path: "campaigns" },
   { key: "forms", label: "Forms", icon: "📝", path: "forms" },
   { key: "crm", label: "CRM Board", icon: "🗂", path: "crm" },
@@ -56,7 +57,7 @@ const NAV = [
 ] as const;
 
 const FOOT_LINKS: { label: string; path: string }[] = [
-  { label: "Dashboard", path: "" },
+  { label: "Dashboard", path: "app" },
   { label: "Campaigns", path: "campaigns" },
   { label: "Forms", path: "forms" },
   { label: "CRM Pipeline", path: "crm" },
@@ -118,6 +119,11 @@ function App() {
   const backendUp = !err && health != null;
   const user = health?.user as { name: string; email: string } | undefined;
   const changeTheme = () => setTheme(toggleTheme());
+
+  // Marketing landing page: standalone, animated, clean URLs (no "#" fragments).
+  if (route.name === "landing") {
+    return <Landing />;
+  }
 
   // Public share link: standalone page without the dashboard shell.
   if (route.name === "form-public") {
@@ -183,7 +189,7 @@ function App() {
 
       <main className="main">
         <header className="topbar">
-          <div className="topbar-brand" onClick={() => navigate("")} title="Go to Dashboard">
+          <div className="topbar-brand" onClick={() => navigate("app")} title="Go to Dashboard">
             <span className="mark">🎙️</span>
             <span className="brand-text">
               <b>Prema AI</b> <em>Voice Agent</em>

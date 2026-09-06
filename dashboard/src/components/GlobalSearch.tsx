@@ -3,7 +3,7 @@ import { api } from "../api";
 import { navigate } from "../router";
 
 const PAGES: { label: string; icon: string; path: string }[] = [
-  { label: "Dashboard", icon: "📊", path: "" },
+  { label: "Dashboard", icon: "📊", path: "app" },
   { label: "Campaigns", icon: "📋", path: "campaigns" },
   { label: "Forms", icon: "📝", path: "forms" },
   { label: "CRM Board", icon: "🗂", path: "crm" },

@@ -6,6 +6,10 @@ const DEFAULT_DESC =
 
 /** Route → branded title/description defaults (enriched with live data by views). */
 const ROUTE_SEO: Record<string, { title: string; description: string }> = {
+  landing: {
+    title: `Prema AI Voice Agent — AI Call Agents for India`,
+    description: "Self-hosted AI voice-call agents for Indian numbers and regional languages. Campaigns, CRM pipeline, Voice Lab, LLM cost monitoring — no Twilio, no ElevenLabs.",
+  },
   dashboard: {
     title: `Dashboard — ${BRAND}`,
     description: "Campaign overview, call stats, LLM cost and agent health for your AI voice calling operations.",

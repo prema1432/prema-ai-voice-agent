@@ -42,7 +42,6 @@ export function parseRoute(path: string): Route {
   }
   if (parts[0] === "llm") return { name: "llm" };
   if (parts[0] === "calls") return { name: "calls" };
-  if (parts[0] === "f" && parts[1]) return { name: "form-public", slug: parts[1] };
   if (parts[0] === "forms" && parts[1] && parts[2] === "submissions") {
     return { name: "form-submissions", id: parts[1] };
   }
